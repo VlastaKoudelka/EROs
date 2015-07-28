@@ -8,17 +8,22 @@ function ERO_ST_BATCH_FILE_par
 %                 | (____/\| ) \ \__| (___) |/\____) |
 %                 (_______/|/   \__/(_______)\_______)
 %                                   
-%  modified> 17.7.2015                         coded by> Vlastimil Koudelka
+%  modified> 28.7.2015                         coded by> Vlastimil Koudelka
 %                                       used code by>Robert Glenn Stockwell
 %
 % for older MATLAB versions execute "matlabpool open" command at first
 
 %% Batch execution
 close all
-names = uigetfile('*.mat','Open the source file','MultiSelect', 'on');
+[names,paths] = uigetfile('*.mat','Open the source file','MultiSelect', 'on');
+
+if ~(iscell(names))
+    names = {names};
+    paths = {paths};
+end
 
 for i = 1:length(names)                 %over all files
-    load(names{i},'com', 'data');
+    load(fullfile(paths{i},names{i}),'com', 'data');
     [NOT_TARGET{i},TARGET{i}, f, t] = EROS_CALC(data, com);   
 end
 
