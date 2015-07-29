@@ -8,15 +8,19 @@ function ERO_ST_BATCH_FILE_par
 %                 | (____/\| ) \ \__| (___) |/\____) |
 %                 (_______/|/   \__/(_______)\_______)
 %                                   
-%  modified> 28.7.2015                         coded by> Vlastimil Koudelka
+%  modified> 29.7.2015                         coded by> Vlastimil Koudelka
 %                                       used code by>Robert Glenn Stockwell
+% 
+% - for optimal performance set a number of parallel workers:
+%    Prallel->Manage Cluster Profiles->Cluster Profile->Edit->NumWorkers
 %
-% for older MATLAB versions execute "matlabpool open" command at first
+% - for older MATLAB versions execute "matlabpool open" before calculation
+
 
 %% Batch execution
 close all
 [names,path] = uigetfile('*.mat','Open the source file','MultiSelect', 'on');
-
+tic
 if ~(iscell(names))
     names = {names};
 end
@@ -26,7 +30,7 @@ for i = 1:length(names)                 %over all files
     load(fullfile(path,names{i}),'com', 'data','titles');
     if (size(titles,1) == 2)
         raw_data{n_ch + 1} = data(1:length(data)/2);
-        flags{n_ch + 1} = load_flags(com); % (trigger labels , sample idx.)
+        flags{n_ch + 1} = load_flags(com); 
         raw_data{n_ch + 2} = data(length(data)/2 + 1:end);
         flags{n_ch + 2} = load_flags(com); 
         n_ch = n_ch + 2;
@@ -43,19 +47,27 @@ for i = 1:length(names)                 %over all files
     end
 end
 
-parfor i = 1:length(raw_data)
-    [A{i},B{i},f{i},t{i}] = EROS_CALC(raw_data{i},flags{i});
+parfor i = 1:length(raw_data)   %over all channels
+    [NOT_TARGET{i},TARGET{i},f{i},t{i}] = EROS_CALC(raw_data{i},flags{i});
 end
 
-% for i = 1:n_mice                    %average over all mice
-%     MEAN{1} = MEAN{1} + MOUSE_TARGET{1,i}{1,1}/n_mice;
-%     MEAN{2} = MEAN{2} + MOUSE_TARGET{1,i}{1,2}/n_mice;
-%     MEAN{3} = MEAN{3} + MOUSE_NOT_TARGET{1,i}{1,1}/n_mice;
-%     MEAN{4} = MEAN{4} + MOUSE_NOT_TARGET{1,i}{1,2}/n_mice;
-% end  
-% 
-% visualize_eros(MEAN, f, t);
-% save ROI_in MEAN f t
+MEAN{1} = zeros(size(NOT_TARGET{1}));  %CH1 target
+MEAN{2} = zeros(size(NOT_TARGET{1}));  %CH2 target
+MEAN{3} = zeros(size(NOT_TARGET{1}));  %CH1 not-target
+MEAN{4} = zeros(size(NOT_TARGET{1}));  %CH2 not_target
+
+n_mice = n_ch/2;
+for i = 1:n_mice                    %average over all mice
+    MEAN{1} = MEAN{1} + TARGET{2*i - 1}/n_mice;
+    MEAN{2} = MEAN{2} + TARGET{2*i}/n_mice;
+    MEAN{3} = MEAN{3} + NOT_TARGET{2*i - 1}/n_mice;
+    MEAN{4} = MEAN{4} + NOT_TARGET{2*i}/n_mice;
+end  
+f = f{1};
+t = t{1};
+toc
+visualize_eros(MEAN, f, t);
+save ROI_in MEAN f t
 end
 
 %% EROS calculation
@@ -127,13 +139,9 @@ for i = 1:size(A_ST{1},1)           %mean value calculation
     end
 end
 
-t = (t * (t_pre + t_post) - t_pre)*1e3;
 A_rel_pow = A_mean.^2/max(max(A_mean.^2));    %Relative spectral pow.
 B_rel_pow = B_mean.^2/max(max(B_mean.^2));
 
-
-t = t(1,:);
-f = f(1,:);
 t = (t * (t_pre + t_post) - t_pre)*1e3;
 end
 
