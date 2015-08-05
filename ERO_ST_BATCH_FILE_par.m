@@ -8,7 +8,7 @@ function ERO_ST_BATCH_FILE_par
 %                 | (____/\| ) \ \__| (___) |/\____) |
 %                 (_______/|/   \__/(_______)\_______)
 %                                   
-%  modified> 29.7.2015                         coded by> Vlastimil Koudelka
+%  modified> 5.8.2015                          coded by> Vlastimil Koudelka
 %                                       used code by>Robert Glenn Stockwell
 % 
 % - for optimal performance set a number of parallel workers:
@@ -21,6 +21,7 @@ function ERO_ST_BATCH_FILE_par
 close all
 [names,path] = uigetfile('*.mat','Open the source file','MultiSelect', 'on');
 tic
+
 if ~(iscell(names))
     names = {names};
 end
@@ -48,35 +49,44 @@ for i = 1:length(names)                 %over all files
 end
 
 parfor i = 1:length(raw_data)   %over all channels
-    [NOT_TARGET{i},TARGET{i},f{i},t{i}] = EROS_CALC(raw_data{i},flags{i});
+    [NOT_T_ERO{i},T_ERO{i},T_ERP{i}, NOT_T_ERP{i}, T_PLI{i}, NOT_T_PLI{i}, f{i},t{i}] = EROS_CALC(raw_data{i},flags{i});
 end
 
-MEAN{1} = zeros(size(NOT_TARGET{1}));  %CH1 target
-MEAN{2} = zeros(size(NOT_TARGET{1}));  %CH2 target
-MEAN{3} = zeros(size(NOT_TARGET{1}));  %CH1 not-target
-MEAN{4} = zeros(size(NOT_TARGET{1}));  %CH2 not_target
+MEAN_POW{1} = zeros(size(NOT_T_ERO{1}));  %CH1 target
+MEAN_POW{2} = zeros(size(NOT_T_ERO{1}));  %CH2 target
+MEAN_POW{3} = zeros(size(NOT_T_ERO{1}));  %CH1 not-target
+MEAN_POW{4} = zeros(size(NOT_T_ERO{1}));  %CH2 not_target
+MEAN_PLI{1} = zeros(size(NOT_T_ERO{1}));  %CH1 target
+MEAN_PLI{2} = zeros(size(NOT_T_ERO{1}));  %CH2 target
+MEAN_PLI{3} = zeros(size(NOT_T_ERO{1}));  %CH1 not-target
+MEAN_PLI{4} = zeros(size(NOT_T_ERO{1}));  %CH2 not_target
 
 n_mice = n_ch/2;
 for i = 1:n_mice                    %average over all mice
-    MEAN{1} = MEAN{1} + TARGET{2*i - 1}/n_mice;
-    MEAN{2} = MEAN{2} + TARGET{2*i}/n_mice;
-    MEAN{3} = MEAN{3} + NOT_TARGET{2*i - 1}/n_mice;
-    MEAN{4} = MEAN{4} + NOT_TARGET{2*i}/n_mice;
+    MEAN_POW{1} = MEAN_POW{1} + T_ERO{2*i - 1}/n_mice;     %CH1 target
+    MEAN_POW{2} = MEAN_POW{2} + T_ERO{2*i}/n_mice;         %CH2 target
+    MEAN_POW{3} = MEAN_POW{3} + NOT_T_ERO{2*i - 1}/n_mice; %CH1 not-target
+    MEAN_POW{4} = MEAN_POW{4} + NOT_T_ERO{2*i}/n_mice;     %CH2 target
+    
+    MEAN_PLI{1} = MEAN_PLI{1} + T_PLI{2*i - 1}/n_mice;     %CH1 target
+    MEAN_PLI{2} = MEAN_PLI{2} + T_PLI{2*i}/n_mice;         %CH2 target
+    MEAN_PLI{3} = MEAN_PLI{3} + NOT_T_PLI{2*i - 1}/n_mice; %CH1 not-target
+    MEAN_PLI{4} = MEAN_PLI{4} + NOT_T_PLI{2*i}/n_mice;     %CH2 target
 end  
 f = f{1};
 t = t{1};
 toc
-visualize_eros(MEAN, f, t);
-save ROI_in MEAN f t
+visualize_eros(MEAN_POW, MEAN_PLI, f, t);
+save ROI_in MEAN_POW MEAN_PLI T_ERO NOT_T_ERO T_ERP NOT_T_ERP T_PLI NOT_T_PLI f t
 end
 
 %% EROS calculation
-function [A_rel_pow, B_rel_pow, f, t] = EROS_CALC(data, flags)
-t_pre = 100*1e-3;            %start trial before trigger [s]
-t_post = 900*1e-3;           %stop trial after trigger [s]
+function [A_rel_pow, B_rel_pow,T_ERP, NOT_T_ERP, B_PLI, A_PLI, f, t] = EROS_CALC(data, flags)
+t_pre = 200*1e-3;            %start trial before trigger [s]
+t_post = 1000*1e-3;           %stop trial after trigger [s]
 delay = 0*1e-3;              %some delay of trigger flag [s]
 f_res = 1;                   %desired resolution in spectogram [Hz]
-f_max = 50;                 %maximum frequency in spectogram [Hz]
+f_max = 70;                 %maximum frequency in spectogram [Hz]
 
 Fs = 250;                               %down-sampled 4kHz -> 250Hz        
 T = 1/Fs;                               %sample period
@@ -114,7 +124,11 @@ for i = 1:size(flags,1)                             %the first event
     end
 end
 
-%% Stockwell Transform
+%% Event related potencials
+T_ERP = mean(B,1);              %target 
+NOT_T_ERP = mean(A,1);          %not-target
+
+%% Event related oscillations: Stockwell Transform 
 for i = 1:size(A,1) 
     [A_ST{i},t,f] = st(A(i,:),0,f_max,T, f_res);  %S-transformation
 end
@@ -126,23 +140,33 @@ end
 %% Postprocessing
 for i = 1:size(A_ST{1},1)           %mean value calculation
     for j = 1:size(A_ST{1},2)
-        cum = 0;
+        cum_abs = 0;
+        cum_phase = 0;
         for k = 1:length(A_ST)
-            cum = cum + abs(A_ST{k}(i,j));
+            cum_abs   = cum_abs + abs(A_ST{k}(i,j));
+            cum_phase = cum_phase + A_ST{k}(i,j)/abs(A_ST{k}(i,j));
         end
-        A_mean(i,j) = cum/length(A_ST);
-        cum = 0;
+        A_mean(i,j) = cum_abs/length(A_ST);         %mean absolute value
+        A_PLI(i,j)  = abs(cum_phase/length(A_ST));  %PLI
+        cum_abs = 0;
+        cum_phase = 0;
         for k = 1:length(B_ST)
-            cum = cum + abs(B_ST{k}(i,j));
+            cum_abs   = cum_abs + abs(B_ST{k}(i,j));
+            cum_phase = cum_phase + B_ST{k}(i,j)/abs(B_ST{k}(i,j));
         end
-        B_mean(i,j) = cum/length(B_ST);
+        B_mean(i,j) = cum_abs/length(B_ST);
+        B_PLI(i,j)  = abs(cum_phase/length(B_ST)); 
     end
 end
 
 A_rel_pow = A_mean.^2/max(max(A_mean.^2));    %Relative spectral pow.
 B_rel_pow = B_mean.^2/max(max(B_mean.^2));
 
-t = (t * (t_pre + t_post) - t_pre)*1e3;
+t = (t * (t_pre + t_post) - t_pre)*1e3;       %Time axis
+
+%% Phase locking index
+
+
 end
 
 %% Flag loading
@@ -168,32 +192,58 @@ end
 
 %% Visuaslization
 
-function visualize_eros(MEAN_vis, f, t)
-
+function visualize_eros(ERO_vis, PLI_vis,  f, t)
+%% EROS
 figure
 subplot(2,2,1)
-contourf(t,f,MEAN_vis{1},20,'LineStyle','none')
+contourf(t,f,ERO_vis{1},20,'LineStyle','none')
 xlabel('time [ms]')
 ylabel('frequency [Hz]')
-title('CH1 - target')
+title('ENERGY > CH1 - target')
 
 subplot(2,2,2)
-contourf(t,f,MEAN_vis{2},20,'LineStyle','none')
+contourf(t,f,ERO_vis{2},20,'LineStyle','none')
 xlabel('time [ms]')
 ylabel('frequency [Hz]')
-title('CH2 - target')
+title('ENERGY > CH2 - target')
 
 subplot(2,2,3)
-contourf(t,f,MEAN_vis{3},20,'LineStyle','none')
+contourf(t,f,ERO_vis{3},20,'LineStyle','none')
 xlabel('time [ms]')
 ylabel('frequency [Hz]')
-title('CH1 - non-target')
+title('ENERGY > CH1 - non-target')
 
 subplot(2,2,4)
-contourf(t,f,MEAN_vis{4},20,'LineStyle','none')
+contourf(t,f,ERO_vis{4},20,'LineStyle','none')
 xlabel('time [ms]')
 ylabel('frequency [Hz]')
-title('CH2 - non-target')
+title('ENERGY > CH2 - non-target')
+
+%% PLI
+figure
+subplot(2,2,1)
+contourf(t,f,PLI_vis{1},20,'LineStyle','none')
+xlabel('time [ms]')
+ylabel('frequency [Hz]')
+title('PLI > CH1 - target')
+
+subplot(2,2,2)
+contourf(t,f,PLI_vis{2},20,'LineStyle','none')
+xlabel('time [ms]')
+ylabel('frequency [Hz]')
+title('PLI > CH2 - target')
+
+subplot(2,2,3)
+contourf(t,f,PLI_vis{3},20,'LineStyle','none')
+xlabel('time [ms]')
+ylabel('frequency [Hz]')
+title('PLI > CH1 - non-target')
+
+subplot(2,2,4)
+contourf(t,f,PLI_vis{4},20,'LineStyle','none')
+xlabel('time [ms]')
+ylabel('frequency [Hz]')
+title('PLI > CH2 - non-target')
 end
 
 
