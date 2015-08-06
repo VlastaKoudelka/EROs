@@ -60,6 +60,11 @@ MEAN_PLI{1} = zeros(size(NOT_T_ERO{1}));  %CH1 target
 MEAN_PLI{2} = zeros(size(NOT_T_ERO{1}));  %CH2 target
 MEAN_PLI{3} = zeros(size(NOT_T_ERO{1}));  %CH1 not-target
 MEAN_PLI{4} = zeros(size(NOT_T_ERO{1}));  %CH2 not_target
+MEAN_ERP{1} = zeros(size(T_ERP{1}));  %CH1 target
+MEAN_ERP{2} = zeros(size(T_ERP{1}));  %CH2 target
+MEAN_ERP{3} = zeros(size(T_ERP{1}));  %CH1 not-target
+MEAN_ERP{4} = zeros(size(T_ERP{1}));  %CH2 not_target
+
 
 n_mice = n_ch/2;
 for i = 1:n_mice                    %average over all mice
@@ -72,12 +77,17 @@ for i = 1:n_mice                    %average over all mice
     MEAN_PLI{2} = MEAN_PLI{2} + T_PLI{2*i}/n_mice;         %CH2 target
     MEAN_PLI{3} = MEAN_PLI{3} + NOT_T_PLI{2*i - 1}/n_mice; %CH1 not-target
     MEAN_PLI{4} = MEAN_PLI{4} + NOT_T_PLI{2*i}/n_mice;     %CH2 target
+    
+    MEAN_ERP{1} = MEAN_ERP{1} + T_ERP{2*i - 1}/n_mice;     %CH1 target
+    MEAN_ERP{2} = MEAN_ERP{2} + T_ERP{2*i}/n_mice;         %CH2 target
+    MEAN_ERP{3} = MEAN_ERP{3} + NOT_T_ERP{2*i - 1}/n_mice; %CH1 not-target
+    MEAN_ERP{4} = MEAN_ERP{4} + NOT_T_ERP{2*i}/n_mice;     %CH2 target
 end  
 f = f{1};
 t = t{1};
 toc
-visualize_eros(MEAN_POW, MEAN_PLI, f, t);
-save ROI_in MEAN_POW MEAN_PLI T_ERO NOT_T_ERO T_ERP NOT_T_ERP T_PLI NOT_T_PLI f t
+visualize_eros(MEAN_POW, MEAN_PLI, MEAN_ERP, f, t);
+save ROI_in MEAN_POW MEAN_PLI MEAN_ERP T_ERO NOT_T_ERO T_ERP NOT_T_ERP T_PLI NOT_T_PLI f t
 end
 
 %% EROS calculation
@@ -106,6 +116,10 @@ data = filtfilt(Num,1,data);            %Zero phase filtering
 data = downsample(data,4)';              %Fs 1kHz -> 250Hz
 
 %% Segmantation
+if ((flags(end,2)- n_delay + n_post)>length(data))
+    flags = flags(1:end-1,:);                %^the last segment overflow 
+end
+
 j = 1;
 k = 1;
 for i = 1:size(flags,1)                             %the first event
@@ -192,7 +206,7 @@ end
 
 %% Visuaslization
 
-function visualize_eros(ERO_vis, PLI_vis,  f, t)
+function visualize_eros(ERO_vis, PLI_vis, ERP_vis, f, t)
 %% EROS
 figure
 subplot(2,2,1)
@@ -244,6 +258,32 @@ contourf(t,f,PLI_vis{4},20,'LineStyle','none')
 xlabel('time [ms]')
 ylabel('frequency [Hz]')
 title('PLI > CH2 - non-target')
+
+%% ERP
+figure
+subplot(2,2,1)
+plot(t,ERP_vis{1})
+xlabel('time [ms]')
+ylabel('voltage [uV]')
+title('ERP > CH1 - target')
+
+subplot(2,2,2)
+plot(t,ERP_vis{2})
+xlabel('time [ms]')
+ylabel('voltage [uV]')
+title('ERP > CH2 - target')
+
+subplot(2,2,3)
+plot(t,ERP_vis{3})
+xlabel('time [ms]')
+ylabel('voltage [uV]')
+title('ERP > CH1 - non-target')
+
+subplot(2,2,4)
+plot(t,ERP_vis{4})
+xlabel('time [ms]')
+ylabel('voltage [uV]')
+title('ERP > CH2 - non-target')
 end
 
 
