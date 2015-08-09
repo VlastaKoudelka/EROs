@@ -3,6 +3,8 @@ Experimental code for Event Realated Oscilation detection
 
 ERO_ST_BATCH_FILE_par.m:
 
+This version automatically detects and supports old flaged data
+
 Last segment tend to overflow the data vector - FIXED!
 
 Newly computes and stores EROs, ERPs, and PLIs:

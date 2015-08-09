@@ -8,7 +8,7 @@ function ERO_ST_BATCH_FILE_par
 %                 | (____/\| ) \ \__| (___) |/\____) |
 %                 (_______/|/   \__/(_______)\_______)
 %                                   
-%  modified> 5.8.2015                          coded by> Vlastimil Koudelka
+%  modified> 9.8.2015                          coded by> Vlastimil Koudelka
 %                                       used code by>Robert Glenn Stockwell
 % 
 % - for optimal performance set a number of parallel workers:
@@ -22,33 +22,13 @@ close all
 [names,path] = uigetfile('*.mat','Open the source file','MultiSelect', 'on');
 tic
 
-if ~(iscell(names))
+if ~(iscell(names))                     %in the case of one file
     names = {names};
 end
 
-n_ch = 0;
-for i = 1:length(names)                 %over all files
-    load(fullfile(path,names{i}),'com', 'data','titles');
-    if (size(titles,1) == 2)
-        raw_data{n_ch + 1} = data(1:length(data)/2);
-        flags{n_ch + 1} = load_flags(com); 
-        raw_data{n_ch + 2} = data(length(data)/2 + 1:end);
-        flags{n_ch + 2} = load_flags(com); 
-        n_ch = n_ch + 2;
-    else
-        raw_data{n_ch + 1} = data(1:length(data)/4);
-        flags{n_ch + 1} = load_flags(com);
-        raw_data{n_ch + 2} = data(length(data)/4 + 1:2*length(data)/4);
-        flags{n_ch + 2} = load_flags(com);
-        raw_data{n_ch + 3} = data(2*length(data)/4 + 1:3*length(data)/4);
-        flags{n_ch + 3} = load_flags(com);
-        raw_data{n_ch + 4} = data(3*length(data)/4 + 1:end);
-        flags{n_ch + 4} = load_flags(com);
-        n_ch = n_ch + 4;
-    end
-end
+[raw_data, flags, labels] = read_data(path,names);
 
-parfor i = 1:length(raw_data)   %over all channels
+for i = 1:length(raw_data)   %over all channels
     [NOT_T_ERO{i},T_ERO{i},T_ERP{i}, NOT_T_ERP{i}, T_PLI{i}, NOT_T_PLI{i}, f{i},t{i}] = EROS_CALC(raw_data{i},flags{i});
 end
 
@@ -66,7 +46,7 @@ MEAN_ERP{3} = zeros(size(T_ERP{1}));  %CH1 not-target
 MEAN_ERP{4} = zeros(size(T_ERP{1}));  %CH2 not_target
 
 
-n_mice = n_ch/2;
+n_mice = length(raw_data)/2;
 for i = 1:n_mice                    %average over all mice
     MEAN_POW{1} = MEAN_POW{1} + T_ERO{2*i - 1}/n_mice;     %CH1 target
     MEAN_POW{2} = MEAN_POW{2} + T_ERO{2*i}/n_mice;         %CH2 target
@@ -87,16 +67,16 @@ f = f{1};
 t = t{1};
 toc
 visualize_eros(MEAN_POW, MEAN_PLI, MEAN_ERP, f, t);
-save ROI_in MEAN_POW MEAN_PLI MEAN_ERP T_ERO NOT_T_ERO T_ERP NOT_T_ERP T_PLI NOT_T_PLI f t
+save ROI_in MEAN_POW MEAN_PLI MEAN_ERP T_ERO NOT_T_ERO T_ERP NOT_T_ERP T_PLI NOT_T_PLI labels f t
 end
 
 %% EROS calculation
 function [A_rel_pow, B_rel_pow,T_ERP, NOT_T_ERP, B_PLI, A_PLI, f, t] = EROS_CALC(data, flags)
 t_pre = 200*1e-3;            %start trial before trigger [s]
-t_post = 1000*1e-3;           %stop trial after trigger [s]
-delay = 0*1e-3;              %some delay of trigger flag [s]
+t_post = 1000*1e-3;          %stop trial after trigger [s]
+delay = flags(1,3);          %some delay of trigger flag [s]
 f_res = 1;                   %desired resolution in spectogram [Hz]
-f_max = 70;                 %maximum frequency in spectogram [Hz]
+f_max = 70;                  %maximum frequency in spectogram [Hz]
 
 Fs = 250;                               %down-sampled 4kHz -> 250Hz        
 T = 1/Fs;                               %sample period
@@ -178,29 +158,67 @@ B_rel_pow = B_mean.^2/max(max(B_mean.^2));
 
 t = (t * (t_pre + t_post) - t_pre)*1e3;       %Time axis
 
-%% Phase locking index
+end
 
+%% Data loading
+function [raw_data, flags, labels] = read_data(path,names)
 
+n_sig = 0;                              %a number of signals
+for i = 1:length(names)                 %over all files
+    load(fullfile(path,names{i}),'com', 'data','titles');
+    if (size(titles,1) == 2)
+        raw_data{n_sig + 1} = data(1:length(data)/2);
+        flags{n_sig + 1} = load_flags(com);
+        labels{n_sig + 1} = fullfile(path,names{i});
+        raw_data{n_sig + 2} = data(length(data)/2 + 1:end);
+        flags{n_sig + 2} = load_flags(com); 
+        labels{n_sig + 2} = fullfile(path,names{i});
+        n_sig = n_sig + 2;
+    else
+        raw_data{n_sig + 1} = data(1:length(data)/4);
+        flags{n_sig + 1} = load_flags(com);
+        labels{n_sig + 1} = fullfile(path,names{i});
+        raw_data{n_sig + 2} = data(length(data)/4 + 1:2*length(data)/4);
+        flags{n_sig + 2} = load_flags(com);
+        labels{n_sig + 2} = fullfile(path,names{i});
+        raw_data{n_sig + 3} = data(2*length(data)/4 + 1:3*length(data)/4);
+        flags{n_sig + 3} = load_flags(com);
+        labels{n_sig + 3} = fullfile(path,names{i});
+        raw_data{n_sig + 4} = data(3*length(data)/4 + 1:end);
+        flags{n_sig + 4} = load_flags(com);
+        labels{n_sig + 4} = fullfile(path,names{i});
+        n_sig = n_sig + 4;
+    end
+end
 end
 
 %% Flag loading
 function flags = load_flags(com)
 
-j = 1;
-for i = 1:size(com,1)
-    if (com(i,5) == 1)              %non-target index
-       flags(j,1) = 1;
+if any(com(:,5) == 3)
+    j = 1;
+    for i = 1:size(com,1)
+        if (com(i,5) == 1)              %non-target index
+           flags(j,1) = 1;
+        end
+
+        if (com(i,5) == 3)              %target index
+           flags(j,1) = 2;
+        end
+
+        if (com(i,5) == 2)              %sample index
+           flags(j,2) = com(i,3);
+           j = j + 1;
+        end
     end
-    
-    if (com(i,5) == 3)              %target index
-       flags(j,1) = 2;
-    end
-    
-    if (com(i,5) == 2)              %sample index
-       flags(j,2) = com(i,3);
-       j = j + 1;
-    end
+    flags(1,3) = 0;                     %delay [s]
+else
+    flags(:,1) = com(:,5);
+    flags(:,2) = com(:,3);
+    flags(1,3) = 70*1e-3;                    %delay [s] (uncorrected data)   
 end
+        
+
 flags(:,2) = round(flags(:,2)/16);  %down-sampled
 end
 
