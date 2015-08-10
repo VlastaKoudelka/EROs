@@ -8,7 +8,7 @@ function ERO_ST_BATCH_FILE_par
 %                 | (____/\| ) \ \__| (___) |/\____) |
 %                 (_______/|/   \__/(_______)\_______)
 %                                   
-%  modified> 9.8.2015                          coded by> Vlastimil Koudelka
+%  modified> 10.8.2015                          coded by> Vlastimil Koudelka
 %                                       used code by>Robert Glenn Stockwell
 % 
 % - for optimal performance set a number of parallel workers:
@@ -28,7 +28,7 @@ end
 
 [raw_data, flags, labels] = read_data(path,names);
 
-for i = 1:length(raw_data)   %over all channels
+parfor i = 1:length(raw_data)   %over all channels
     [NOT_T_ERO{i},T_ERO{i},T_ERP{i}, NOT_T_ERP{i}, T_PLI{i}, NOT_T_PLI{i}, f{i},t{i}] = EROS_CALC(raw_data{i},flags{i});
 end
 
