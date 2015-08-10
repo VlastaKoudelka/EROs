@@ -8,9 +8,10 @@ function ERO_ST_BATCH_FILE_par
 %                 | (____/\| ) \ \__| (___) |/\____) |
 %                 (_______/|/   \__/(_______)\_______)
 %                                   
-%  modified> 10.8.2015                          coded by> Vlastimil Koudelka
+%  modified> 10.8.2015                         coded by> Vlastimil Koudelka
 %                                       used code by>Robert Glenn Stockwell
 % 
+% - EROs energy calculated from averaged segments -> ERPs !!! 
 % - for optimal performance set a number of parallel workers:
 %    Prallel->Manage Cluster Profiles->Cluster Profile->Edit->NumWorkers
 %
@@ -125,33 +126,33 @@ NOT_T_ERP = mean(A,1);          %not-target
 %% Event related oscillations: Stockwell Transform 
 for i = 1:size(A,1) 
     [A_ST{i},t,f] = st(A(i,:),0,f_max,T, f_res);  %S-transformation
-end
+end                                               %for PLI
 
 for i = 1:size(B,1)
-    [B_ST{i},t,f] = st(B(i,:),0,f_max,T, f_res);
+    [B_ST{i},t,f] = st(B(i,:),0,f_max,T, f_res); 
 end
+
+[A_mean,t,f] = st(NOT_T_ERP,0,f_max,T, f_res);  %S-transformation
+[B_mean,t,f] = st(T_ERP,0,f_max,T, f_res);      %for energy
 
 %% Postprocessing
 for i = 1:size(A_ST{1},1)           %mean value calculation
     for j = 1:size(A_ST{1},2)
-        cum_abs = 0;
         cum_phase = 0;
         for k = 1:length(A_ST)
-            cum_abs   = cum_abs + abs(A_ST{k}(i,j));
             cum_phase = cum_phase + A_ST{k}(i,j)/abs(A_ST{k}(i,j));
         end
-        A_mean(i,j) = cum_abs/length(A_ST);         %mean absolute value
         A_PLI(i,j)  = abs(cum_phase/length(A_ST));  %PLI
-        cum_abs = 0;
         cum_phase = 0;
         for k = 1:length(B_ST)
-            cum_abs   = cum_abs + abs(B_ST{k}(i,j));
             cum_phase = cum_phase + B_ST{k}(i,j)/abs(B_ST{k}(i,j));
         end
-        B_mean(i,j) = cum_abs/length(B_ST);
         B_PLI(i,j)  = abs(cum_phase/length(B_ST)); 
     end
 end
+
+A_mean = abs(A_mean);
+B_mean = abs(B_mean);
 
 A_rel_pow = A_mean.^2/max(max(A_mean.^2));    %Relative spectral pow.
 B_rel_pow = B_mean.^2/max(max(B_mean.^2));
