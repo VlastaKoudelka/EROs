@@ -8,7 +8,7 @@ function ERO_ST_BATCH_FILE_par
 %                 | (____/\| ) \ \__| (___) |/\____) |
 %                 (_______/|/   \__/(_______)\_______)
 %                                   
-%  modified> 10.8.2015                          coded by> Vlastimil Koudelka
+%  modified> 19.8.2015                         coded by> Vlastimil Koudelka
 %                                       used code by>Robert Glenn Stockwell
 % 
 % - for optimal performance set a number of parallel workers:
@@ -196,27 +196,48 @@ end
 function flags = load_flags(com)
 
 if any(com(:,5) == 3)
-    j = 1;
-    for i = 1:size(com,1)
-        if (com(i,5) == 1)              %non-target index
-           flags(j,1) = 1;
-        end
+    if com(1,5) == 1
+        j = 1;
+        for i = 1:size(com,1)
+            if (com(i,5) == 2)              %non-target index
+               flags(j,1) = 1;
+               j = j + 1;
+            end
 
-        if (com(i,5) == 3)              %target index
-           flags(j,1) = 2;
-        end
+            if (com(i,5) == 3)              %target index
+               flags(j,1) = 2;
+               j = j + 1;
+            end
 
-        if (com(i,5) == 2)              %sample index
-           flags(j,2) = com(i,3);
-           j = j + 1;
+            if (com(i,5) == 1)              %sample index
+               flags(j,2) = com(i,3);
+            end
         end
+        flags(1,3) = 0;                     %delay [s]    
+    else        
+        j = 1;
+        for i = 1:size(com,1)
+            if (com(i,5) == 1)              %non-target index
+               flags(j,1) = 1;
+            end
+
+            if (com(i,5) == 3)              %target index
+               flags(j,1) = 2;
+            end
+
+            if (com(i,5) == 2)              %sample index
+               flags(j,2) = com(i,3);
+               j = j + 1;
+            end
+        end
+        flags(1,3) = 0;                     %delay [s]
     end
-    flags(1,3) = 0;                     %delay [s]
 else
     flags(:,1) = com(:,5);
     flags(:,2) = com(:,3);
     flags(1,3) = 70*1e-3;                    %delay [s] (uncorrected data)   
 end
+    
         
 
 flags(:,2) = round(flags(:,2)/16);  %down-sampled
