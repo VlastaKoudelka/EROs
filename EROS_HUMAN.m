@@ -3,82 +3,49 @@ function EROS_HUMAN
 %                 (  ____ \(  ____ )(  ___  )(  ____ \
 %                 | (    \/| (    )|| (   ) || (    \/
 %                 | (__    | (____)|| |   | || (_____ 
-%                 |  __)   |     __)| |   | |(_____  )    (BATCH_FILE)
-%                 | (      | (\ (   | |   | |      ) |     (parallel)   
+%                 |  __)   |     __)| |   | |(_____  )    
+%                 | (      | (\ (   | |   | |      ) |   
 %                 | (____/\| ) \ \__| (___) |/\____) |
 %                 (_______/|/   \__/(_______)\_______)
 %                                   
-%  modified> 19.8.2015                         coded by> Vlastimil Koudelka
+%  modified> 10.9.2015                         coded by> Vlastimil Koudelka
 %                                       used code by>Robert Glenn Stockwell
 % 
-% - for optimal performance set a number of parallel workers:
-%    Prallel->Manage Cluster Profiles->Cluster Profile->Edit->NumWorkers
-%
-% - for older MATLAB versions execute "matlabpool open" before calculation
-
 
 %% Batch execution
+
 close all
-[names,path] = uigetfile('*.mat','Open the source file','MultiSelect', 'on');
+[f_names,f_path] = uigetfile('*.edf','Open the source file','MultiSelect', 'on');
 tic
 
-if ~(iscell(names))                     %in the case of one file
-    names = {names};
+if ~(iscell(f_names))                     %in the case of one file
+    f_names = {f_names};
 end
 
-[raw_data, flags, labels] = read_data(path,names);
+subject = read_data(f_path,f_names);
 
-parfor i = 1:length(raw_data)   %over all channels
-    [NOT_T_ERO{i},T_ERO{i},T_ERP{i}, NOT_T_ERP{i}, T_PLI{i}, NOT_T_PLI{i}, f{i},t{i}] = EROS_CALC(raw_data{i},flags{i});
+for i = 1:length(subject)   %over all subject
+    for j = 1:length(subject.labels)
+        [subject(i).ERO{1,j},subject(i).ERO{2,j},subject(i).ERP{1,j}, ...
+         subject(i).ERP{2,j},subject(i).PLI{1,j},subject(i).PLI{2,j}, ...
+         subject(i).f,subject(i).t] = EROS_CALC(subject(i).raw_data{i},subject.triggers);
+    end
 end
 
-MEAN_POW{1} = zeros(size(NOT_T_ERO{1}));  %CH1 target
-MEAN_POW{2} = zeros(size(NOT_T_ERO{1}));  %CH2 target
-MEAN_POW{3} = zeros(size(NOT_T_ERO{1}));  %CH1 not-target
-MEAN_POW{4} = zeros(size(NOT_T_ERO{1}));  %CH2 not_target
-MEAN_PLI{1} = zeros(size(NOT_T_ERO{1}));  %CH1 target
-MEAN_PLI{2} = zeros(size(NOT_T_ERO{1}));  %CH2 target
-MEAN_PLI{3} = zeros(size(NOT_T_ERO{1}));  %CH1 not-target
-MEAN_PLI{4} = zeros(size(NOT_T_ERO{1}));  %CH2 not_target
-MEAN_ERP{1} = zeros(size(T_ERP{1}));  %CH1 target
-MEAN_ERP{2} = zeros(size(T_ERP{1}));  %CH2 target
-MEAN_ERP{3} = zeros(size(T_ERP{1}));  %CH1 not-target
-MEAN_ERP{4} = zeros(size(T_ERP{1}));  %CH2 not_target
-
-
-n_mice = length(raw_data)/2;
-for i = 1:n_mice                    %average over all mice
-    MEAN_POW{1} = MEAN_POW{1} + T_ERO{2*i - 1}/n_mice;     %CH1 target
-    MEAN_POW{2} = MEAN_POW{2} + T_ERO{2*i}/n_mice;         %CH2 target
-    MEAN_POW{3} = MEAN_POW{3} + NOT_T_ERO{2*i - 1}/n_mice; %CH1 not-target
-    MEAN_POW{4} = MEAN_POW{4} + NOT_T_ERO{2*i}/n_mice;     %CH2 target
-    
-    MEAN_PLI{1} = MEAN_PLI{1} + T_PLI{2*i - 1}/n_mice;     %CH1 target
-    MEAN_PLI{2} = MEAN_PLI{2} + T_PLI{2*i}/n_mice;         %CH2 target
-    MEAN_PLI{3} = MEAN_PLI{3} + NOT_T_PLI{2*i - 1}/n_mice; %CH1 not-target
-    MEAN_PLI{4} = MEAN_PLI{4} + NOT_T_PLI{2*i}/n_mice;     %CH2 target
-    
-    MEAN_ERP{1} = MEAN_ERP{1} + T_ERP{2*i - 1}/n_mice;     %CH1 target
-    MEAN_ERP{2} = MEAN_ERP{2} + T_ERP{2*i}/n_mice;         %CH2 target
-    MEAN_ERP{3} = MEAN_ERP{3} + NOT_T_ERP{2*i - 1}/n_mice; %CH1 not-target
-    MEAN_ERP{4} = MEAN_ERP{4} + NOT_T_ERP{2*i}/n_mice;     %CH2 target
-end  
-f = f{1};
-t = t{1};
 toc
-visualize_eros(MEAN_POW, MEAN_PLI, MEAN_ERP, f, t);
-save ROI_in MEAN_POW MEAN_PLI MEAN_ERP T_ERO NOT_T_ERO T_ERP NOT_T_ERP T_PLI NOT_T_PLI labels f t
+visualize_eros(subject);
+% save ROI_in subject
 end
 
 %% EROS calculation
 function [A_rel_pow, B_rel_pow,T_ERP, NOT_T_ERP, B_PLI, A_PLI, f, t] = EROS_CALC(data, flags)
 t_pre = 200*1e-3;            %start trial before trigger [s]
 t_post = 1000*1e-3;          %stop trial after trigger [s]
-delay = flags(1,3);          %some delay of trigger flag [s]
+delay = 0;                   %some delay of trigger flag [s]
 f_res = 1;                   %desired resolution in spectogram [Hz]
-f_max = 70;                  %maximum frequency in spectogram [Hz]
+f_max = 50;                  %maximum frequency in spectogram [Hz]
 
-Fs = 250;                               %down-sampled 4kHz -> 250Hz        
+Fs = 250;                               %down-sampled 1kHz -> 250Hz        
 T = 1/Fs;                               %sample period
 n_pre = round(t_pre*Fs);                % #samples before trigger
 n_post = round(t_post*Fs);              % #samples after trigger
@@ -87,13 +54,13 @@ N = n_pre + n_post + 1;                 % #samples within a trial
 
 %% Prefiltering & Down-sampling
 load filters.mat Num                    %the same anti-aliasing filter for:
-                                        %Fs=4kHz, fp=400Hz, fs=500Hz
+
                                         %Fs=1kHz, fp=100Hz, fs=125Hz
                                         
 data = filtfilt(Num,1,data);            %Zero phase filtering
-data = downsample(data,4)';              %Fs 4kHz -> 1kHz
-data = filtfilt(Num,1,data);            %Zero phase filtering
 data = downsample(data,4)';              %Fs 1kHz -> 250Hz
+
+flags(:,2) = round(flags(:,2)/4);
 
 %% Segmantation
 if ((flags(end,2)- n_delay + n_post)>length(data))
@@ -161,168 +128,73 @@ t = (t * (t_pre + t_post) - t_pre)*1e3;       %Time axis
 end
 
 %% Data loading
-function [raw_data, flags, labels] = read_data(path,names)
+function subject = read_data(path,names)
 
-n_sig = 0;                              %a number of signals
 for i = 1:length(names)                 %over all files
-    load(fullfile(path,names{i}),'com', 'data','titles');
-    if (size(titles,1) == 2)
-        raw_data{n_sig + 1} = data(1:length(data)/2);
-        flags{n_sig + 1} = load_flags(com);
-        labels{n_sig + 1} = fullfile(path,names{i});
-        raw_data{n_sig + 2} = data(length(data)/2 + 1:end);
-        flags{n_sig + 2} = load_flags(com); 
-        labels{n_sig + 2} = fullfile(path,names{i});
-        n_sig = n_sig + 2;
-    else
-        raw_data{n_sig + 1} = data(1:length(data)/4);
-        flags{n_sig + 1} = load_flags(com);
-        labels{n_sig + 1} = fullfile(path,names{i});
-        raw_data{n_sig + 2} = data(length(data)/4 + 1:2*length(data)/4);
-        flags{n_sig + 2} = load_flags(com);
-        labels{n_sig + 2} = fullfile(path,names{i});
-        raw_data{n_sig + 3} = data(2*length(data)/4 + 1:3*length(data)/4);
-        flags{n_sig + 3} = load_flags(com);
-        labels{n_sig + 3} = fullfile(path,names{i});
-        raw_data{n_sig + 4} = data(3*length(data)/4 + 1:end);
-        flags{n_sig + 4} = load_flags(com);
-        labels{n_sig + 4} = fullfile(path,names{i});
-        n_sig = n_sig + 4;
-    end
-end
-end
-
-%% Flag loading
-function flags = load_flags(com)
-
-if any(com(:,5) == 3)
-    if com(1,5) == 1
-        j = 1;
-        for i = 1:size(com,1)
-            if (com(i,5) == 2)              %non-target index
-               flags(j,1) = 1;
-               j = j + 1;
-            end
-
-            if (com(i,5) == 3)              %target index
-               flags(j,1) = 2;
-               j = j + 1;
-            end
-
-            if (com(i,5) == 1)              %sample index
-               flags(j,2) = com(i,3);
-            end
+    [data,header] = ReadEDF(fullfile(path,names{i}));       %read EDF 
+    if i == 1    
+        [el_idx,ok] = listdlg('PromptString','Select electrodes:','ListString',header.labels);   %select electrodes
+        if length(el_idx) > 2
+            el_idx = el_idx(1:2);
         end
-        flags(1,3) = 0;                     %delay [s]    
-    else        
-        j = 1;
-        for i = 1:size(com,1)
-            if (com(i,5) == 1)              %non-target index
-               flags(j,1) = 1;
-            end
-
-            if (com(i,5) == 3)              %target index
-               flags(j,1) = 2;
-            end
-
-            if (com(i,5) == 2)              %sample index
-               flags(j,2) = com(i,3);
-               j = j + 1;
-            end
-        end
-        flags(1,3) = 0;                     %delay [s]
-    end
-else
-    flags(:,1) = com(:,5);
-    flags(:,2) = com(:,3);
-    flags(1,3) = 70*1e-3;                    %delay [s] (uncorrected data)   
-end
-    
         
-
-flags(:,2) = round(flags(:,2)/16);  %down-sampled
+        event = unique(header.annotation.event);
+        trig_idx = listdlg('PromptString','Select triggers:','ListString',event);   %select triggers
+    end
+    
+    for j = 1:length(el_idx)
+        subject(i).raw_data{j} = data{el_idx(j)};
+        subject(i).labels{j} = header.labels{el_idx(j)};
+    end
+    
+    for j = 1:length(trig_idx)
+        subject(i).trig_label{j} = event{trig_idx(j)};
+    end
+    subject(i).filename = fullfile(path,names{i});
+    
+    m = 1;
+    for k = 1:length(header.annotation.event)
+       for j = 1:length(subject(i).trig_label)
+            if strcmp(subject(i).trig_label{j},header.annotation.event{k})
+                subject(i).triggers(m,1) = j;                     %event type
+                subject(i).triggers(m,2) = header.annotation.starttime(k);
+                m = m + 1;
+            end
+        end
+    end
+    subject(i).triggers(:,2) = round(subject(i).triggers(:,2)*1e3);
+    %time [s] -> time [ms] -> sample indices
+end
 end
 
 %% Visuaslization
 
-function visualize_eros(ERO_vis, PLI_vis, ERP_vis, f, t)
+function visualize_eros(subject)
 %% EROS
 figure
 subplot(2,2,1)
-contourf(t,f,ERO_vis{1},20,'LineStyle','none')
+contourf(subject.t,subject.f,subject.ERO{1,1},20,'LineStyle','none')
 xlabel('time [ms]')
 ylabel('frequency [Hz]')
-title('ENERGY > CH1 - target')
+title(['ENERGY > CH1 - ' subject.trig_label{1}])
 
 subplot(2,2,2)
-contourf(t,f,ERO_vis{2},20,'LineStyle','none')
+contourf(subject.t,subject.f,subject.ERO{2,1},20,'LineStyle','none')
 xlabel('time [ms]')
 ylabel('frequency [Hz]')
-title('ENERGY > CH2 - target')
+title(['ENERGY > CH2 - ' subject.trig_label{2}])
 
 subplot(2,2,3)
-contourf(t,f,ERO_vis{3},20,'LineStyle','none')
+contourf(subject.t,subject.f,subject.PLI{1,1},20,'LineStyle','none')
 xlabel('time [ms]')
 ylabel('frequency [Hz]')
-title('ENERGY > CH1 - non-target')
+title(['ENERGY > CH1 - '  subject.trig_label{1}])
 
 subplot(2,2,4)
-contourf(t,f,ERO_vis{4},20,'LineStyle','none')
+contourf(subject.t,subject.f,subject.PLI{2,1},20,'LineStyle','none')
 xlabel('time [ms]')
 ylabel('frequency [Hz]')
-title('ENERGY > CH2 - non-target')
-
-%% PLI
-figure
-subplot(2,2,1)
-contourf(t,f,PLI_vis{1},20,'LineStyle','none')
-xlabel('time [ms]')
-ylabel('frequency [Hz]')
-title('PLI > CH1 - target')
-
-subplot(2,2,2)
-contourf(t,f,PLI_vis{2},20,'LineStyle','none')
-xlabel('time [ms]')
-ylabel('frequency [Hz]')
-title('PLI > CH2 - target')
-
-subplot(2,2,3)
-contourf(t,f,PLI_vis{3},20,'LineStyle','none')
-xlabel('time [ms]')
-ylabel('frequency [Hz]')
-title('PLI > CH1 - non-target')
-
-subplot(2,2,4)
-contourf(t,f,PLI_vis{4},20,'LineStyle','none')
-xlabel('time [ms]')
-ylabel('frequency [Hz]')
-title('PLI > CH2 - non-target')
-
-%% ERP
-figure
-subplot(2,2,1)
-plot(t,ERP_vis{1})
-xlabel('time [ms]')
-ylabel('voltage [uV]')
-title('ERP > CH1 - target')
-
-subplot(2,2,2)
-plot(t,ERP_vis{2})
-xlabel('time [ms]')
-ylabel('voltage [uV]')
-title('ERP > CH2 - target')
-
-subplot(2,2,3)
-plot(t,ERP_vis{3})
-xlabel('time [ms]')
-ylabel('voltage [uV]')
-title('ERP > CH1 - non-target')
-
-subplot(2,2,4)
-plot(t,ERP_vis{4})
-xlabel('time [ms]')
-ylabel('voltage [uV]')
-title('ERP > CH2 - non-target')
+title(['ENERGY > CH2 - '  subject.trig_label{2}])
 end
 
 
