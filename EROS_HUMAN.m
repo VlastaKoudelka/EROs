@@ -1,4 +1,4 @@
-function ERO_ST_BATCH_FILE_par
+function EROS_HUMAN
 %                  _______  _______  _______  _______ 
 %                 (  ____ \(  ____ )(  ___  )(  ____ \
 %                 | (    \/| (    )|| (   ) || (    \/
