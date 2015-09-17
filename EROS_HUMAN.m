@@ -8,7 +8,7 @@ function EROS_HUMAN
 %                 | (____/\| ) \ \__| (___) |/\____) |
 %                 (_______/|/   \__/(_______)\_______)
 %                                   
-%  modified> 11.9.2015                         coded by> Vlastimil Koudelka
+%  modified> 17.9.2015                         coded by> Vlastimil Koudelka
 %                                       used code by>Robert Glenn Stockwell
 % 
 
@@ -25,7 +25,7 @@ end
 subject = read_data(f_path,f_name);
 
 for i = 1:length(subject)   %over all subject
-    for j = 1:length(subject(i).labels)
+    for j = 1:length(subject(i).chan_label)
         [subject(i).ERO{1,j},subject(i).ERO{2,j},subject(i).ERP{1,j}, ...
          subject(i).ERP{2,j},subject(i).PLI{1,j},subject(i).PLI{2,j}, ...
          subject(i).f,subject(i).t] = EROS_CALC(subject(i).raw_data{j},subject(i).triggers);
@@ -140,7 +140,7 @@ end
 % 
 % k = 1;
 % for i = 1:length(subject)   %over all subject
-%     for j = 1:length(subject(i).labels)
+%     for j = 1:length(subject(i).chan_label)
 %         data{k} = subject(i).raw_data{j};
 %         flags{k} = subject(i).triggers;
 %         k = k + 1;
@@ -152,7 +152,7 @@ end
 % end
 % 
 % for i = 1:length(subject)   %over all subject
-%     for j = 1:length(subject(i).labels)
+%     for j = 1:length(subject(i).chan_label)
 %         [subject(i).ERO{1,j},subject(i).ERO{2,j},subject(i).ERP{1,j}, ...
 %          subject(i).ERP{2,j},subject(i).PLI{1,j},subject(i).PLI{2,j}, ...
 %          subject(i).f,subject(i).t] = EROS_CALC(subject(i).raw_data{j},subject(i).triggers);
@@ -169,8 +169,8 @@ for i = 1:length(names)                                     %over all files
     subject(i).f_path = path;
     if i == 1    
         [el_idx,ok] = listdlg('PromptString','Select electrodes:','ListString',header.labels);   %select electrodes
-        if length(el_idx) > 10
-            el_idx = el_idx(1:10);
+        if length(el_idx) > 20
+            el_idx = el_idx(1:20);
         end
         
         event = unique(header.annotation.event);
@@ -180,7 +180,7 @@ for i = 1:length(names)                                     %over all files
     
     for j = 1:length(el_idx)
         subject(i).raw_data{j} = data{el_idx(j)};
-        subject(i).labels{j} = header.labels{el_idx(j)};
+        subject(i).chan_label{j} = header.labels{el_idx(j)};
     end
     
     for j = 1:length(trig_idx)
@@ -225,6 +225,27 @@ end
 mean_sbj = subject(1);
 mean_sbj.f_name = 'MEAN SUBJECT';
 mean_sbj.f_path = 'N/A';
+mean_sbj.chan_label{end + 1} = 'all-ch-avrg';
+
+% Average across all channels
+
+for i = 1:n_evt         %initiate cumulative channel
+    mean_sbj.ERO{i,n_ch + 1} = mean_sbj.ERO{i,1};
+    mean_sbj.PLI{i,n_ch + 1} = mean_sbj.PLI{i,1};
+    mean_sbj.ERP{i,n_ch + 1} = mean_sbj.ERP{i,1};
+end
+
+for i = 1:n_evt         %averaging
+    for j = 2:n_ch 
+        mean_sbj.ERO{i,n_ch + 1} = mean_sbj.ERO{i,n_ch + 1} + mean_sbj.ERO{i,j};
+        mean_sbj.PLI{i,n_ch + 1} = mean_sbj.PLI{i,n_ch + 1} + mean_sbj.PLI{i,j};
+        mean_sbj.ERP{i,n_ch + 1} = mean_sbj.ERP{i,n_ch + 1} + mean_sbj.ERP{i,j};
+    end
+    mean_sbj.ERO{i,n_ch + 1} = mean_sbj.ERO{i,n_ch + 1}/n_ch;
+    mean_sbj.PLI{i,n_ch + 1} = mean_sbj.PLI{i,n_ch + 1}/n_ch;
+    mean_sbj.ERP{i,n_ch + 1} = mean_sbj.ERP{i,n_ch + 1}/n_ch;
+end
+
 clear mean_sbj.raw_data
     
 end
@@ -238,43 +259,43 @@ end
 f_idx = listdlg('PromptString','Select files for visualization:','ListString',files);
 
 for i = 1:length(f_idx)
-    for j = 1:subject(f_idx(i)).n_ch
+    for j = 1:subject(f_idx(i)).n_ch + 1
         figure('name',subject(f_idx(i)).f_name)
         subplot(2,3,1)
-        contourf(subject(i).t,subject(i).f,subject(i).ERO{1,j},20,'LineStyle','none')
+        contourf(subject(f_idx(i)).t,subject(f_idx(i)).f,subject(f_idx(i)).ERO{1,j},20,'LineStyle','none')
         xlabel('time [ms]')
         ylabel('frequency [Hz]')
-        title(['ENERGY > ch: ' subject(i).labels{j} ' > evt: ' subject(i).trig_label{1}])
+        title(['ENERGY > ch: ' subject(f_idx(i)).chan_label{j} ' > evt: ' subject(f_idx(i)).trig_label{1}])
     
         subplot(2,3,4)
-        contourf(subject(i).t,subject(i).f,subject(i).ERO{2,j},20,'LineStyle','none')
+        contourf(subject(f_idx(i)).t,subject(f_idx(i)).f,subject(f_idx(i)).ERO{2,j},20,'LineStyle','none')
         xlabel('time [ms]')
         ylabel('frequency [Hz]')
-        title(['ENERGY > ch: ' subject(i).labels{j} ' > evt: ' subject(i).trig_label{2}])
+        title(['ENERGY > ch: ' subject(f_idx(i)).chan_label{j} ' > evt: ' subject(f_idx(i)).trig_label{2}])
         
         subplot(2,3,2)
-        contourf(subject(i).t,subject(i).f,subject(i).PLI{1,j},20,'LineStyle','none')
+        contourf(subject(f_idx(i)).t,subject(f_idx(i)).f,subject(f_idx(i)).PLI{1,j},20,'LineStyle','none')
         xlabel('time [ms]')
         ylabel('frequency [Hz]')
-        title(['PLI > ch: ' subject(i).labels{j} ' > evt: ' subject(i).trig_label{1}])
+        title(['PLI > ch: ' subject(f_idx(i)).chan_label{j} ' > evt: ' subject(f_idx(i)).trig_label{1}])
         
         subplot(2,3,5)
-        contourf(subject(i).t,subject(i).f,subject(i).PLI{2,j},20,'LineStyle','none')
+        contourf(subject(f_idx(i)).t,subject(f_idx(i)).f,subject(f_idx(i)).PLI{2,j},20,'LineStyle','none')
         xlabel('time [ms]')
         ylabel('frequency [Hz]')
-        title(['PLI > ch: ' subject(i).labels{j} ' > evt: ' subject(i).trig_label{2}])
+        title(['PLI > ch: ' subject(f_idx(i)).chan_label{j} ' > evt: ' subject(f_idx(i)).trig_label{2}])
         
         subplot(2,3,3)
-        plot(subject(i).t,subject(i).ERP{1,j})
+        plot(subject(f_idx(i)).t,subject(f_idx(i)).ERP{1,j})
         xlabel('time [ms]')
         ylabel('voltage [uV]')
-        title(['ERP > ch: ' subject(i).labels{j} ' > evt: ' subject(i).trig_label{1}])
+        title(['ERP > ch: ' subject(f_idx(i)).chan_label{j} ' > evt: ' subject(f_idx(i)).trig_label{1}])
         
         subplot(2,3,6)
-        plot(subject(i).t,subject(i).ERP{2,j})
+        plot(subject(f_idx(i)).t,subject(f_idx(i)).ERP{2,j})
         xlabel('time [ms]')
         ylabel('voltage [uV]')
-        title(['ERP > ch: ' subject(i).labels{j} ' > evt: ' subject(i).trig_label{2}])
+        title(['ERP > ch: ' subject(f_idx(i)).chan_label{j} ' > evt: ' subject(f_idx(i)).trig_label{2}])
     end                          
 end
 end
