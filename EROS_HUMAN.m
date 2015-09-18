@@ -8,7 +8,7 @@ function EROS_HUMAN
 %                 | (____/\| ) \ \__| (___) |/\____) |
 %                 (_______/|/   \__/(_______)\_______)
 %                                   
-%  modified> 17.9.2015                         coded by> Vlastimil Koudelka
+%  modified> 18.9.2015                         coded by> Vlastimil Koudelka
 %                                       used code by>Robert Glenn Stockwell
 % 
 
@@ -42,7 +42,7 @@ visualize_eros(subject);
 end
 
 %% EROS calculation
-function [A_rel_pow, B_rel_pow,T_ERP, NOT_T_ERP, B_PLI, A_PLI, f, t] = EROS_CALC(data, flags)
+function [A_rel_pow, B_rel_pow, A_ERP, B_ERP, A_PLI, B_PLI, f, t] = EROS_CALC(data, flags)
 t_pre = 200*1e-3;            %start trial before trigger [s]
 t_post = 1000*1e-3;          %stop trial after trigger [s]
 delay = 0;                   %some delay of trigger flag [s]
@@ -57,9 +57,9 @@ n_delay = round(delay*Fs);              % #samples of delay
 N = n_pre + n_post + 1;                 % #samples within a trial
 
 %% Prefiltering & Down-sampling
-load filter_DP_100_125.mat Num                    %the same anti-aliasing filter for:
+load filter_DP_40_50.mat Num            %the same anti-aliasing filter for:
 
-                                        %Fs=1kHz, fp=100Hz, fs=125Hz
+                                        %Fs=1kHz, fp=40Hz, fs=50Hz
                                         
 data = filtfilt(Num,1,data);            %Zero phase filtering
 data = downsample(data,4)';              %Fs 1kHz -> 250Hz
@@ -94,8 +94,8 @@ for i = 1:size(flags,1)                             %the first event
 end
 
 %% Event related potencials
-T_ERP = mean(B,1);              %target 
-NOT_T_ERP = mean(A,1);          %not-target
+A_ERP = mean(A,1);          %not-target
+B_ERP = mean(B,1);              %target 
 
 %% Event related oscillations: Stockwell Transform 
 for i = 1:size(A,1) 
@@ -172,14 +172,21 @@ for i = 1:length(names)                                     %over all files
         if length(el_idx) > 20
             el_idx = el_idx(1:20);
         end
+        ref_idx = listdlg('PromptString','Select reference:','ListString',header.labels);   %select reference          
         
         event = unique(header.annotation.event);
         trig_idx = listdlg('PromptString','Select triggers:','ListString',event);   %select triggers
     end
-    subject(i).n_ch = length(el_idx);
+   
     
+    new_ref = data{ref_idx(1)}/length(ref_idx);
+    for j = 2:length(ref_idx)
+        new_ref = new_ref + data{ref_idx(j)}/length(ref_idx);
+    end
+    
+    subject(i).n_ch = length(el_idx);
     for j = 1:length(el_idx)
-        subject(i).raw_data{j} = data{el_idx(j)};
+        subject(i).raw_data{j} = data{el_idx(j)} - new_ref;
         subject(i).chan_label{j} = header.labels{el_idx(j)};
     end
     
@@ -259,7 +266,7 @@ end
 f_idx = listdlg('PromptString','Select files for visualization:','ListString',files);
 
 for i = 1:length(f_idx)
-    for j = 1:subject(f_idx(i)).n_ch + 1
+    for j = 1:subject(f_idx(i)).n_ch + (1*isequal(f_idx(i),length(subject))) %an exception for the mean subject
         figure('name',subject(f_idx(i)).f_name)
         subplot(2,3,1)
         contourf(subject(f_idx(i)).t,subject(f_idx(i)).f,subject(f_idx(i)).ERO{1,j},20,'LineStyle','none')
