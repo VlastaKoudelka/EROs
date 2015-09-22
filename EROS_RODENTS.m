@@ -80,7 +80,7 @@ save ROI_in MEAN_POW MEAN_ERP_POW MEAN_PLI MEAN_ERP T_ERO NOT_T_ERO T_ERP NOT_T_
 end
 
 %% EROS calculation
-function [A_rel_ERO, B_rel_ERO, A_AVG_ERO, B_AVG_ERO, NOT_T_ERP, T_ERP, A_PLI, B_PLI, f, t] = EROS_CALC(data, flags)
+function [A_rel_ERO, B_rel_ERO, A_rel_AVG_ERO, B_rel_AVG_ERO, NOT_T_ERP, T_ERP, A_PLI, B_PLI, f, t] = EROS_CALC(data, flags)
 t_pre = 200*1e-3;            %start trial before trigger [s]
 t_post = 1000*1e-3;          %stop trial after trigger [s]
 delay = flags(1,3);          %some delay of trigger flag [s]
