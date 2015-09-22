@@ -157,7 +157,7 @@ B_mean = abs(B_mean);
 A_rel_pow = A_mean.^2/max(max(A_mean.^2));    %Relative spectral pow.
 B_rel_pow = B_mean.^2/max(max(B_mean.^2));
 
-t = (t * (t_pre + t_post) - t_pre)*1e3;       %Time axis
+t = (t - t_pre)*1e3;       %Time axis [ms]
 
 end
 
