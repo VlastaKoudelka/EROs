@@ -48,10 +48,10 @@ function [st,t,f] = st_tuned(timeseries,minfreq,maxfreq,samplingrate,freqsamplin
 TRUE = 1;
 FALSE = 0;
 %%% DEFAULT PARAMETERS  [change these for your particular application]
-verbose = FALE;         
+verbose = FALSE;         
 removeedge= TRUE;
 analytic_signal =  FALSE;
-factor = 0.5;
+factor = 1;
 %%% END of DEFAULT PARAMETERS
  
  
