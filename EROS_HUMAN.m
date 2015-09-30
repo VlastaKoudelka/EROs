@@ -8,7 +8,7 @@ function EROS_HUMAN
 %                 | (____/\| ) \ \__| (___) |/\____) |
 %                 (_______/|/   \__/(_______)\_______)
 %                                   
-%  modified> 18.9.2015                         coded by> Vlastimil Koudelka
+%  modified> 30.9.2015                         coded by> Vlastimil Koudelka
 %                                       used code by>Robert Glenn Stockwell
 % 
 
@@ -42,9 +42,9 @@ visualize_eros(subject);
 end
 
 %% EROS calculation
-function [A_rel_pow, B_rel_pow, A_ERP, B_ERP, A_PLI, B_PLI, f, t] = EROS_CALC(data, flags)
-t_pre = 200*1e-3;            %start trial before trigger [s]
-t_post = 1000*1e-3;          %stop trial after trigger [s]
+function [A_rpow_ERO, B_rpow_ERO, A_ERP, B_ERP, A_PLI, B_PLI, f, t] = EROS_CALC(data, flags)
+t_pre = 600*1e-3;            %start trial before trigger [s]
+t_post = 1100*1e-3;          %stop trial after trigger [s]
 delay = 0;                   %some delay of trigger flag [s]
 f_res = 1;                   %desired resolution in spectogram [Hz]
 f_max = 50;                  %maximum frequency in spectogram [Hz]
@@ -99,12 +99,17 @@ B_ERP = mean(B,1);              %target
 
 %% Event related oscillations: Stockwell Transform 
 for i = 1:size(A,1) 
-    [A_ST{i},t,f] = st(A(i,:),0,f_max,T, f_res);  %S-transformation
+    [A_ST{i},t,f] = st_tuned(A(i,:),0,f_max,T, f_res);  %S-transformation
 end
 
 for i = 1:size(B,1)
-    [B_ST{i},t,f] = st(B(i,:),0,f_max,T, f_res);
+    [B_ST{i},t,f] = st_tuned(B(i,:),0,f_max,T, f_res);
 end
+[A_AVG_ERO,t,f] = st_tuned(A_ERP,0,f_max,T, f_res);  %S-transformation
+[B_AVG_ERO,t,f] = st_tuned(B_ERP,0,f_max,T, f_res);      %for energy
+
+A_AVG_ERO = abs(A_AVG_ERO);
+B_AVG_ERO = abs(B_AVG_ERO);
 
 %% Postprocessing
 for i = 1:size(A_ST{1},1)           %mean value calculation
@@ -115,7 +120,7 @@ for i = 1:size(A_ST{1},1)           %mean value calculation
             cum_abs   = cum_abs + abs(A_ST{k}(i,j));
             cum_phase = cum_phase + A_ST{k}(i,j)/abs(A_ST{k}(i,j));
         end
-        A_mean(i,j) = cum_abs/length(A_ST);         %mean absolute value
+        A_ERO(i,j) = cum_abs/length(A_ST);         %mean absolute value
         A_PLI(i,j)  = abs(cum_phase/length(A_ST));  %PLI
         cum_abs = 0;
         cum_phase = 0;
@@ -123,15 +128,65 @@ for i = 1:size(A_ST{1},1)           %mean value calculation
             cum_abs   = cum_abs + abs(B_ST{k}(i,j));
             cum_phase = cum_phase + B_ST{k}(i,j)/abs(B_ST{k}(i,j));
         end
-        B_mean(i,j) = cum_abs/length(B_ST);
+        B_ERO(i,j) = cum_abs/length(B_ST);
         B_PLI(i,j)  = abs(cum_phase/length(B_ST)); 
     end
 end
 
-A_rel_pow = A_mean.^2/max(max(A_mean.^2));    %Relative spectral pow.
-B_rel_pow = B_mean.^2/max(max(B_mean.^2));
+%% Normalization
+t = (t - t_pre)*1e3;       %Time axis [ms]
 
-t = (t - t_pre)*1e3;       %Time axis
+% Normalize to base line (average from bROI for each frequency)
+
+t_bROI(1) = -500;        %start time for base line
+t_bROI(2) = -200;        %stop time for base line
+t_vis(1) = -200;         %start time of visualization (exclude artefacts)
+t_vis(2) = 1000;          %stop time of visualization (exclude artefacts)
+
+[c t_idx(1)] = min(abs(t-t_bROI(1)));
+[c t_idx(2)] = min(abs(t-t_bROI(2)));
+[c t_vis_idx(1)] = min(abs(t-t_vis(1)));
+[c t_vis_idx(2)] = min(abs(t-t_vis(2)));
+
+t = t(t_vis_idx(1):t_vis_idx(2));   %a new time axis for visualization
+
+% ERO
+A_ERO = A_ERO.^2;
+B_ERO = B_ERO.^2;
+
+base_pow{1} = mean(A_ERO(:,t_idx(1):t_idx(2)),2);
+[c, base_pow{1}] = meshgrid(1:size(A_ERO,2),base_pow{1}); 
+base_pow{2} = mean(B_ERO(:,t_idx(1):t_idx(2)),2);
+[c, base_pow{2}] = meshgrid(1:size(B_ERO,2),base_pow{2}); 
+
+A_rpow_ERO = A_ERO(:,t_vis_idx(1):t_vis_idx(2))./base_pow{1}(:,t_vis_idx(1):t_vis_idx(2));
+B_rpow_ERO = B_ERO(:,t_vis_idx(1):t_vis_idx(2))./base_pow{2}(:,t_vis_idx(1):t_vis_idx(2));
+
+% ERP based ERO
+A_AVG_ERO = A_AVG_ERO.^2;
+B_AVG_ERO = B_AVG_ERO.^2;
+
+base_pow{1} = mean(A_AVG_ERO(:,t_idx(1):t_idx(2)),2);
+[c, base_pow{1}] = meshgrid(1:size(A_AVG_ERO,2),base_pow{1}); 
+base_pow{2} = mean(B_AVG_ERO(:,t_idx(1):t_idx(2)),2);
+[c, base_pow{2}] = meshgrid(1:size(B_AVG_ERO,2),base_pow{2});
+
+A_rpow_AVG_ERO = A_AVG_ERO(:,t_vis_idx(1):t_vis_idx(2))./base_pow{1}(:,t_vis_idx(1):t_vis_idx(2));
+B_rpow_AVG_ERO = B_AVG_ERO(:,t_vis_idx(1):t_vis_idx(2))./base_pow{2}(:,t_vis_idx(1):t_vis_idx(2));
+
+B_ERP = B_ERP(:,t_vis_idx(1):t_vis_idx(2));           %short the time series correspondingly
+A_ERP = A_ERP(:,t_vis_idx(1):t_vis_idx(2));
+
+A_PLI = A_PLI(:,t_vis_idx(1):t_vis_idx(2));
+B_PLI = B_PLI(:,t_vis_idx(1):t_vis_idx(2));
+
+% Normalize to the maximal power
+
+% A_rpow_ERO = A_ERO.^2/max(max(A_ERO.^2));    %Relative spectral pow.
+% B_rpow_ERO = B_ERO.^2/max(max(B_ERO.^2));
+% 
+% A_rpow_AVG_ERO = A_AVG_ERO.^2/max(max(A_AVG_ERO.^2));    %Relative spectral pow. Averaged
+% B_rpow_AVG_ERO = B_AVG_ERO.^2/max(max(B_AVG_ERO.^2));
 
 end
 
