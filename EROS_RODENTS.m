@@ -8,7 +8,7 @@ function EROS_RODENTS
 %                 | (____/\| ) \ \__| (___) |/\____) |
 %                 (_______/|/   \__/(_______)\_______)
 %                                   
-%  modified> 22.9.2015                         coded by> Vlastimil Koudelka
+%  modified> 30.9.2015                         coded by> Vlastimil Koudelka
 %                                       used code by>Robert Glenn Stockwell
 % 
 % - for optimal performance set a number of parallel workers:
@@ -82,10 +82,10 @@ end
 %% EROS calculation
 function [A_rpow_ERO, B_rpow_ERO, A_rpow_AVG_ERO, B_rpow_AVG_ERO, NOT_T_ERP, T_ERP, A_PLI, B_PLI, f, t] = EROS_CALC(data, flags)
 t_pre = 600*1e-3;            %start trial before trigger [s]
-t_post = 1000*1e-3;          %stop trial after trigger [s]
+t_post = 1100*1e-3;          %stop trial after trigger [s]
 delay = flags(1,3);          %some delay of trigger flag [s]
 f_res = 1;                   %desired resolution in spectogram [Hz]
-f_max = 125;                  %maximum frequency in spectogram [Hz]
+f_max = 70;                  %maximum frequency in spectogram [Hz]
 
 Fs = 250;                               %down-sampled 4kHz -> 250Hz        
 T = 1/Fs;                               %sample period
@@ -175,8 +175,8 @@ t = (t - t_pre)*1e3;       %Time axis [ms]
 
 t_bROI(1) = -500;        %start time for base line
 t_bROI(2) = -200;        %stop time for base line
-t_vis(1) = -500;         %start time of visualization (exclude artefacts)
-t_vis(2) = 900;          %stop time of visualization (exclude artefacts)
+t_vis(1) = -200;         %start time of visualization (exclude artefacts)
+t_vis(2) = 1000;          %stop time of visualization (exclude artefacts)
 
 [c t_idx(1)] = min(abs(t-t_bROI(1)));
 [c t_idx(2)] = min(abs(t-t_bROI(2)));

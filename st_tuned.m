@@ -51,7 +51,7 @@ FALSE = 0;
 verbose = FALSE;         
 removeedge= TRUE;
 analytic_signal =  FALSE;
-factor = 1;
+factor = 0.5;
 %%% END of DEFAULT PARAMETERS
  
  

@@ -1,4 +1,4 @@
-function [st,t,f] = st_tuned(timeseries,minfreq,maxfreq,samplingrate,freqsamplingrate)
+function [st,t,f] = st(timeseries,minfreq,maxfreq,samplingrate,freqsamplingrate)
 % Returns the Stockwell Transform of the timeseries.
 % Code by Robert Glenn Stockwell.
 % DO NOT DISTRIBUTE
@@ -48,10 +48,10 @@ function [st,t,f] = st_tuned(timeseries,minfreq,maxfreq,samplingrate,freqsamplin
 TRUE = 1;
 FALSE = 0;
 %%% DEFAULT PARAMETERS  [change these for your particular application]
-verbose = FALE;         
+verbose = FALSE;         
 removeedge= TRUE;
 analytic_signal =  FALSE;
-factor = 0.5;
+factor = 1;
 %%% END of DEFAULT PARAMETERS
  
  
@@ -126,10 +126,7 @@ end
 % calculate the sampled time and frequency values from the two sampling rates
 t = (0:length(timeseries)-1)*samplingrate;
 spe_nelements =ceil((maxfreq - minfreq+1)/freqsamplingrate);
-% f = (minfreq + [0:spe_nelements-1]*freqsamplingrate)/(samplingrate*length(timeseries));
-df = 1/samplingrate/length(timeseries);
-real_fmax = floor(maxfreq/df)*df;
-f = 0:df:real_fmax;
+f = (minfreq + [0:spe_nelements-1]*freqsamplingrate)/(samplingrate*length(timeseries));
 if verbose disp(sprintf('The number of frequency voices is %d',spe_nelements)),end
  
  
@@ -231,11 +228,8 @@ end
  
 %the actual calculation of the ST
 % Start loop to increment the frequency point
-df = 1/samplingrate/length(timeseries);
-real_fmax = floor(maxfreq/df)*df;
-freq = 0:df:real_fmax;
-for banana = 1:length(freq) - 1
-   st(banana+1,:)=ifft(vector_fft(banana+1:banana+n).*g_window(n,freq(banana+1),factor));
+for banana=freqsamplingrate:freqsamplingrate:(maxfreq-minfreq)
+   st(banana/freqsamplingrate+1,:)=ifft(vector_fft(minfreq+banana+1:minfreq+banana+n).*g_window(n,minfreq+banana,factor));
 end   % a fruit loop!   aaaaa ha ha ha ha ha ha ha ha ha ha
 % End loop to increment the frequency point
 if verbose disp('Finished Calculation'),end
