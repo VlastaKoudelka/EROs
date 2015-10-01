@@ -8,7 +8,7 @@ function EROS_HUMAN
 %                 | (____/\| ) \ \__| (___) |/\____) |
 %                 (_______/|/   \__/(_______)\_______)
 %                                   
-%  modified> 30.9.2015                         coded by> Vlastimil Koudelka
+%  modified> 1.10.2015                         coded by> Vlastimil Koudelka
 %                                       used code by>Robert Glenn Stockwell
 % 
 
@@ -24,15 +24,16 @@ end
 
 subject = read_data(f_path,f_name);
 
-for i = 1:length(subject)   %over all subject
-    for j = 1:length(subject(i).chan_label)
-        [subject(i).ERO{1,j},subject(i).ERO{2,j},subject(i).ERP{1,j}, ...
-         subject(i).ERP{2,j},subject(i).PLI{1,j},subject(i).PLI{2,j}, ...
-         subject(i).f,subject(i).t] = EROS_CALC(subject(i).raw_data{j},subject(i).triggers);
-    end
-end
+%sequential execution
+% for i = 1:length(subject)   %over all subject
+%     for j = 1:length(subject(i).chan_label)
+%         [subject(i).ERO{1,j},subject(i).ERO{2,j},subject(i).ERP{1,j}, ...
+%          subject(i).ERP{2,j},subject(i).PLI{1,j},subject(i).PLI{2,j}, ...
+%          subject(i).f,subject(i).t] = EROS_CALC(subject(i).raw_data{j},subject(i).triggers);
+%     end
+% end
 
-% subject = par_comp(subject);
+subject = par_comp(subject);
 
 subject(end + 1) = crt_mean_sbj(subject);
 
@@ -47,7 +48,7 @@ t_pre = 600*1e-3;            %start trial before trigger [s]
 t_post = 1100*1e-3;          %stop trial after trigger [s]
 delay = 0;                   %some delay of trigger flag [s]
 f_res = 1;                   %desired resolution in spectogram [Hz]
-f_max = 50;                  %maximum frequency in spectogram [Hz]
+f_max = 20;                  %maximum frequency in spectogram [Hz]
 
 Fs = 250;                               %down-sampled 1kHz -> 250Hz        
 T = 1/Fs;                               %sample period
@@ -191,29 +192,35 @@ B_PLI = B_PLI(:,t_vis_idx(1):t_vis_idx(2));
 end
 
 %% Parallel computation
-% function subject = par_comp(subject);
-% 
-% k = 1;
-% for i = 1:length(subject)   %over all subject
-%     for j = 1:length(subject(i).chan_label)
-%         data{k} = subject(i).raw_data{j};
-%         flags{k} = subject(i).triggers;
-%         k = k + 1;
-%     end
-% end
-% 
-% parfor i = 1:length(data)
-%     
-% end
-% 
-% for i = 1:length(subject)   %over all subject
-%     for j = 1:length(subject(i).chan_label)
-%         [subject(i).ERO{1,j},subject(i).ERO{2,j},subject(i).ERP{1,j}, ...
-%          subject(i).ERP{2,j},subject(i).PLI{1,j},subject(i).PLI{2,j}, ...
-%          subject(i).f,subject(i).t] = EROS_CALC(subject(i).raw_data{j},subject(i).triggers);
-%     end
-% end
-% end
+function subject = par_comp(subject);
+
+k = 1;
+for i = 1:length(subject)   %over all subject
+    for j = 1:length(subject(i).chan_label) %over all channels
+        data{k} = subject(i).raw_data{j};
+        flags{k} = subject(i).triggers;
+        k = k + 1;
+    end
+end
+
+parfor i = 1:length(data)
+    [A_rpow_ERO{i}, B_rpow_ERO{i}, A_ERP{i}, B_ERP{i}, A_PLI{i}, B_PLI{i}, f{i}, t{i}] = EROS_CALC(data{i},flags{i});
+end
+k = 1;
+for i = 1:length(subject)   %over all subject
+    for j = 1:length(subject(i).chan_label) %over all channels
+        subject(i).ERO{1,j} = A_rpow_ERO{k};
+        subject(i).ERO{2,j} = B_rpow_ERO{k};
+        subject(i).ERP{1,j} = A_ERP{k};
+        subject(i).ERP{2,j} = B_ERP{k};        
+        subject(i).PLI{1,j} = A_PLI{k};
+        subject(i).PLI{2,j} = B_PLI{k};
+        subject(i).f = f{1};
+        subject(i).t = t{1};
+        k = k + 1;
+    end
+end
+end
 
 %% Data loading
 function subject = read_data(path,names)
