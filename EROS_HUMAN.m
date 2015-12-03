@@ -8,7 +8,7 @@ function EROS_HUMAN
 %                 | (____/\| ) \ \__| (___) |/\____) |
 %                 (_______/|/   \__/(_______)\_______)
 %                                   
-%  modified> 1.10.2015                         coded by> Vlastimil Koudelka
+% modified> 3.12.2015                          coded by> Vlastimil Koudelka
 %                                       used code by>Robert Glenn Stockwell
 % 
 
@@ -36,10 +36,10 @@ subject = read_data(f_path,f_name);
 subject = par_comp(subject);
 
 subject(end + 1) = crt_mean_sbj(subject);
-
+save ROI_in subject
 toc
 visualize_eros(subject);
-% save ROI_in subject
+
 end
 
 %% EROS calculation
@@ -220,6 +220,13 @@ for i = 1:length(subject)   %over all subject
         k = k + 1;
     end
 end
+
+
+% Do not save the raw data
+for i = 1:length(subject)
+    subject(i).raw_data = 'erased by "par_comp()"';
+end
+
 end
 
 %% Data loading
@@ -234,21 +241,26 @@ for i = 1:length(names)                                     %over all files
         if length(el_idx) > 20
             el_idx = el_idx(1:20);
         end
-        ref_idx = listdlg('PromptString','Select reference:','ListString',header.labels);   %select reference          
+        [ref_idx,new_ref_flag] = listdlg('PromptString','Select a new ref. or cancel:','ListString',header.labels);   %select reference          
         
         event = unique(header.annotation.event);
         trig_idx = listdlg('PromptString','Select triggers:','ListString',event);   %select triggers
     end
    
-    
-    new_ref = data{ref_idx(1)}/length(ref_idx);
-    for j = 2:length(ref_idx)
-        new_ref = new_ref + data{ref_idx(j)}/length(ref_idx);
+    if new_ref_flag
+        new_ref = data{ref_idx(1)}/length(ref_idx);
+        for j = 2:length(ref_idx)
+            new_ref = new_ref + data{ref_idx(j)}/length(ref_idx);
+        end
     end
     
     subject(i).n_ch = length(el_idx);
     for j = 1:length(el_idx)
-        subject(i).raw_data{j} = data{el_idx(j)} - new_ref;
+        if new_ref_flag
+            subject(i).raw_data{j} = data{el_idx(j)} - new_ref;
+        else
+            subject(i).raw_data{j} = data{el_idx(j)};
+        end
         subject(i).chan_label{j} = header.labels{el_idx(j)};
     end
     
@@ -314,8 +326,6 @@ for i = 1:n_evt         %averaging
     mean_sbj.PLI{i,n_ch + 1} = mean_sbj.PLI{i,n_ch + 1}/n_ch;
     mean_sbj.ERP{i,n_ch + 1} = mean_sbj.ERP{i,n_ch + 1}/n_ch;
 end
-
-clear mean_sbj.raw_data
     
 end
 
