@@ -44,8 +44,8 @@ end
 
 %% Core calculation
 function [A_PDLI,B_PDLI,t,f] = PDLI_CALC(subject)
-t_pre = 600*1e-3;            %start trial before trigger [s]
-t_post = 1100*1e-3;          %stop trial after trigger [s]
+t_pre = 400*1e-3;            %start trial before trigger [s]
+t_post = 900*1e-3;          %stop trial after trigger [s]
 delay = subject.triggers(1,3); %some delay of trigger flag [s]
 f_res = 1;                   %desired resolution in spectogram [Hz]
 f_max = 70;                  %maximum frequency in spectogram [Hz]
@@ -120,6 +120,7 @@ for i = 1:subject.n_ch          %because I didn't know a number of stims.
         B_PDLI{m,n} = abs(B_PDLI{m,n}/B_cum);
     end
 end
+t = (t - t_pre)*1e3;       %Time axis [ms]
 subject.raw_data = 'erased by DPLI_CALC()';
 end
 
