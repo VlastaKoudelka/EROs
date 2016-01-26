@@ -8,7 +8,7 @@ function EROS_HUMAN
 %                 | (____/\| ) \ \__| (___) |/\____) |
 %                 (_______/|/   \__/(_______)\_______)
 %                                   
-% modified> 3.12.2015                          coded by> Vlastimil Koudelka
+% modified> 25.1.2016                          coded by> Vlastimil Koudelka
 %                                       used code by>Robert Glenn Stockwell
 % 
 
@@ -24,21 +24,12 @@ end
 
 subject = read_data(f_path,f_name);
 
-%sequential execution
-% for i = 1:length(subject)   %over all subject
-%     for j = 1:length(subject(i).chan_label)
-%         [subject(i).ERO{1,j},subject(i).ERO{2,j},subject(i).ERP{1,j}, ...
-%          subject(i).ERP{2,j},subject(i).PLI{1,j},subject(i).PLI{2,j}, ...
-%          subject(i).f,subject(i).t] = EROS_CALC(subject(i).raw_data{j},subject(i).triggers);
-%     end
-% end
-
-subject = par_comp(subject);
+subject = par_comp(subject);    %parallel execution
 
 subject(end + 1) = crt_mean_sbj(subject);
 save ROI_in subject
 toc
-visualize_eros(subject);
+% visualize_eros(subject);
 
 end
 
@@ -48,7 +39,7 @@ t_pre = 600*1e-3;            %start trial before trigger [s]
 t_post = 1100*1e-3;          %stop trial after trigger [s]
 delay = 0;                   %some delay of trigger flag [s]
 f_res = 1;                   %desired resolution in spectogram [Hz]
-f_max = 20;                  %maximum frequency in spectogram [Hz]
+f_max = 40;                  %maximum frequency in spectogram [Hz]
 
 Fs = 250;                               %down-sampled 1kHz -> 250Hz        
 T = 1/Fs;                               %sample period
@@ -201,6 +192,7 @@ for i = 1:length(subject)   %over all subject
         flags{k} = subject(i).triggers;
         k = k + 1;
     end
+    subject(i).raw_data = 'erased by "par_comp()"'; %free memory
 end
 
 parfor i = 1:length(data)
@@ -220,13 +212,6 @@ for i = 1:length(subject)   %over all subject
         k = k + 1;
     end
 end
-
-
-% Do not save the raw data
-for i = 1:length(subject)
-    subject(i).raw_data = 'erased by "par_comp()"';
-end
-
 end
 
 %% Data loading
