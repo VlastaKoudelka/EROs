@@ -8,7 +8,7 @@ function EROS_HUMAN
 %                 | (____/\| ) \ \__| (___) |/\____) |
 %                 (_______/|/   \__/(_______)\_______)
 %                                   
-% modified> 25.1.2016                          coded by> Vlastimil Koudelka
+% modified> 27.1.2016                          coded by> Vlastimil Koudelka
 %                                       used code by>Robert Glenn Stockwell
 % 
 
@@ -17,29 +17,82 @@ function EROS_HUMAN
 close all
 [f_name,f_path] = uigetfile('*.edf','Open the source file','MultiSelect', 'on');
 tic
+subject = par_manage(f_path,f_name);
+subject(end + 1) = crt_mean_sbj(subject);
+save ROI_in subject
+toc
+% visualize_eros(subject);
 
-if ~(iscell(f_name))                     %in the case of one file
+end
+
+%% Parallel management - data loading, computation, and completion
+function subject = par_manage(f_path,f_name)
+
+if ~(iscell(f_name))                    %in the case of one file
     f_name = {f_name};
 end
 
-subject = read_data(f_path,f_name);
+no_files = length(f_name);              %a number of loaded files
 
-% Parallel computation
-k = 1;
-for i = 1:length(subject)   %over all subject
-    for j = 1:length(subject(i).chan_label) %over all channels
-        data{k} = subject(i).raw_data{j};
-        flags{k} = subject(i).triggers;
-        k = k + 1;
+for i = 1:length(f_name);               %subject in a sequence
+    
+    [data,header] = ReadEDF(fullfile(f_path,f_name{i}));       %read EDF 
+    subject(i).f_name = f_name{i}; 
+    subject(i).f_path = f_path;
+    if i == 1                   %for the first subject only
+        %---user input---BEGIN
+        [el_idx,ok] = listdlg('PromptString','Select electrodes:','ListString',header.labels);   %select electrodes
+        if length(el_idx) > 20
+            el_idx = el_idx(1:20);
+        end
+        [ref_idx,new_ref_flag] = listdlg('PromptString','Select a new ref. or cancel:','ListString',header.labels);   %select reference          
+
+        event = unique(header.annotation.event);
+        trig_idx = listdlg('PromptString','Select triggers:','ListString',event);   %select triggers
+        %---user input---END
     end
-    subject(i).raw_data = 'erased';
-end
-
-parfor i = 1:length(data)
-    [A_rpow_ERO{i}, B_rpow_ERO{i}, A_ERP{i}, B_ERP{i}, A_PLI{i}, B_PLI{i}, f{i}, t{i}] = EROS_CALC(data{i},flags{i});
-end
-k = 1;
-for i = 1:length(subject)   %over all subject
+   
+    if new_ref_flag
+        new_ref = data{ref_idx(1)}/length(ref_idx);
+        for j = 2:length(ref_idx)
+            new_ref = new_ref + data{ref_idx(j)}/length(ref_idx);
+        end
+    end
+    
+    subject(i).n_ch = length(el_idx);
+    for j = 1:length(el_idx)
+        if new_ref_flag
+            data{j} = data{el_idx(j)} - new_ref;
+        else
+            data{j} = data{el_idx(j)};
+        end
+        subject(i).chan_label{j} = header.labels{el_idx(j)};
+    end
+    
+    for j = 1:length(trig_idx)
+        subject(i).trig_label{j} = event{trig_idx(j)};
+    end
+    
+    m = 1;
+    for k = 1:length(header.annotation.event)
+       for j = 1:length(subject(i).trig_label)
+            if strcmp(subject(i).trig_label{j},header.annotation.event{k})
+                subject(i).triggers(m,1) = j;              %event type
+                subject(i).triggers(m,2) = header.annotation.starttime(k);
+                m = m + 1;
+            end
+        end
+    end
+    subject(i).triggers(:,2) = round(subject(i).triggers(:,2)*1e3);
+    %time [s] -> time [ms] -> sample indices
+    
+    %---parallel computation---BEGIN
+    parfor j = 1:length(data)  %channels in parallel
+        [A_rpow_ERO{j}, B_rpow_ERO{j}, A_ERP{j}, B_ERP{j}, A_PLI{j}, B_PLI{j}, f{j}, t{j}] = EROS_CALC(data{j},subject(i).triggers);
+    end
+    %---parallel computation---END
+    
+    k = 1;
     for j = 1:length(subject(i).chan_label) %over all channels
         subject(i).ERO{1,j} = A_rpow_ERO{k};
         subject(i).ERO{2,j} = B_rpow_ERO{k};
@@ -52,16 +105,7 @@ for i = 1:length(subject)   %over all subject
         k = k + 1;
     end
 end
-
-
-subject(end + 1) = crt_mean_sbj(subject);
-save ROI_in subject
-toc
-% visualize_eros(subject);
-
 end
-
-
 %% EROS calculation
 function [A_rpow_ERO, B_rpow_ERO, A_ERP, B_ERP, A_PLI, B_PLI, f, t] = EROS_CALC(data, flags)
 t_pre = 600*1e-3;            %start trial before trigger [s]
@@ -98,7 +142,7 @@ end
 
 A_ERP_cum = 0; B_ERP_cum = 0; A_ERO_cum = 0; B_ERO_cum = 0; 
 A_PLI_cum = 0; B_PLI_cum = 0;
-no_A = 1; no_B = 1;
+no_A = 0; no_B = 0;
 
 for i = 1:size(flags,1)                             %the first event
     if (flags(i,1) == 1)
@@ -196,57 +240,10 @@ B_PLI = B_PLI(:,t_vis_idx(1):t_vis_idx(2));
 end
 
 %% Data loading
-function subject = read_data(path,names)
+function subject = read_data(path,name)
 
-for i = 1:length(names)                                     %over all files
-    [data,header] = ReadEDF(fullfile(path,names{i}));       %read EDF 
-    subject(i).f_name = names{i};
-    subject(i).f_path = path;
-    if i == 1    
-        [el_idx,ok] = listdlg('PromptString','Select electrodes:','ListString',header.labels);   %select electrodes
-        if length(el_idx) > 20
-            el_idx = el_idx(1:20);
-        end
-        [ref_idx,new_ref_flag] = listdlg('PromptString','Select a new ref. or cancel:','ListString',header.labels);   %select reference          
-        
-        event = unique(header.annotation.event);
-        trig_idx = listdlg('PromptString','Select triggers:','ListString',event);   %select triggers
-    end
-   
-    if new_ref_flag
-        new_ref = data{ref_idx(1)}/length(ref_idx);
-        for j = 2:length(ref_idx)
-            new_ref = new_ref + data{ref_idx(j)}/length(ref_idx);
-        end
-    end
-    
-    subject(i).n_ch = length(el_idx);
-    for j = 1:length(el_idx)
-        if new_ref_flag
-            subject(i).raw_data{j} = data{el_idx(j)} - new_ref;
-        else
-            subject(i).raw_data{j} = data{el_idx(j)};
-        end
-        subject(i).chan_label{j} = header.labels{el_idx(j)};
-    end
-    
-    for j = 1:length(trig_idx)
-        subject(i).trig_label{j} = event{trig_idx(j)};
-    end
-    
-    m = 1;
-    for k = 1:length(header.annotation.event)
-       for j = 1:length(subject(i).trig_label)
-            if strcmp(subject(i).trig_label{j},header.annotation.event{k})
-                subject(i).triggers(m,1) = j;              %event type
-                subject(i).triggers(m,2) = header.annotation.starttime(k);
-                m = m + 1;
-            end
-        end
-    end
-    subject(i).triggers(:,2) = round(subject(i).triggers(:,2)*1e3);
-    %time [s] -> time [ms] -> sample indices
-end
+
+
 end
 
 %% Average
