@@ -24,7 +24,35 @@ end
 
 subject = read_data(f_path,f_name);
 
-subject = par_comp(subject);    %parallel execution
+% Parallel computation
+k = 1;
+for i = 1:length(subject)   %over all subject
+    for j = 1:length(subject(i).chan_label) %over all channels
+        data{k} = subject(i).raw_data{j};
+        flags{k} = subject(i).triggers;
+        k = k + 1;
+    end
+    subject(i).raw_data = 'erased';
+end
+
+parfor i = 1:length(data)
+    [A_rpow_ERO{i}, B_rpow_ERO{i}, A_ERP{i}, B_ERP{i}, A_PLI{i}, B_PLI{i}, f{i}, t{i}] = EROS_CALC(data{i},flags{i});
+end
+k = 1;
+for i = 1:length(subject)   %over all subject
+    for j = 1:length(subject(i).chan_label) %over all channels
+        subject(i).ERO{1,j} = A_rpow_ERO{k};
+        subject(i).ERO{2,j} = B_rpow_ERO{k};
+        subject(i).ERP{1,j} = A_ERP{k};
+        subject(i).ERP{2,j} = B_ERP{k};        
+        subject(i).PLI{1,j} = A_PLI{k};
+        subject(i).PLI{2,j} = B_PLI{k};
+        subject(i).f = f{1};
+        subject(i).t = t{1};
+        k = k + 1;
+    end
+end
+
 
 subject(end + 1) = crt_mean_sbj(subject);
 save ROI_in subject
@@ -32,6 +60,7 @@ toc
 % visualize_eros(subject);
 
 end
+
 
 %% EROS calculation
 function [A_rpow_ERO, B_rpow_ERO, A_ERP, B_ERP, A_PLI, B_PLI, f, t] = EROS_CALC(data, flags)
@@ -60,70 +89,54 @@ load filter_HP_0_2.mat Num
 
 data = filtfilt(Num,1,data);            %high pass filter
 
-flags(:,2) = round(flags(:,2)/4);
+flags(:,2) = round(flags(:,2)/4);       %4xundersampled
 
-%% Segmantation
+%% Segmantation @ transformation @ averaging (saves memory)
 if ((flags(end,2)- n_delay + n_post)>length(data))
     flags = flags(1:end-1,:);                %^the last segment overflow 
 end
 
-j = 1;
-k = 1;
+A_ERP_cum = 0; B_ERP_cum = 0; A_ERO_cum = 0; B_ERO_cum = 0; 
+A_PLI_cum = 0; B_PLI_cum = 0;
+no_A = 1; no_B = 1;
+
 for i = 1:size(flags,1)                             %the first event
     if (flags(i,1) == 1)
         start_idx = flags(i,2) - n_delay - n_pre;   %begin idx. of trial
         stop_idx = flags(i,2) - n_delay + n_post;   %end idx. of trial
-        A(j,:) = data(start_idx:stop_idx);          %trial segment   
-        j = j + 1;        
-    end
-    
+        [A_ST,t,f] = st_tuned(data(start_idx:stop_idx),0,f_max,T, f_res);  %S-transformation  
+        
+        A_ERP_cum = A_ERP_cum + data(start_idx:stop_idx);   %cumulative
+        A_ERO_cum = A_ERO_cum + abs(A_ST);                  %operation
+        A_PLI_cum = A_PLI_cum + A_ST./abs(A_ST);            %for average
+        no_A = no_A + 1;        
+    end    
     if (flags(i,1) == 2)                            %the second event
         start_idx = flags(i,2) - n_delay - n_pre;
         stop_idx = flags(i,2) - n_delay + n_post;
-        B(k,:) = data(start_idx:stop_idx);
-        k = k + 1;  
+        [B_ST,t,f] = st_tuned(data(start_idx:stop_idx),0,f_max,T, f_res);  %S-transformation  
+        
+        B_ERP_cum = B_ERP_cum + data(start_idx:stop_idx);   %cumulative
+        B_ERO_cum = B_ERO_cum + abs(B_ST);                  %operation
+        B_PLI_cum = B_PLI_cum + B_ST./abs(B_ST);            %for average                
+        no_B = no_B + 1;  
     end
 end
+clear data;
 
-%% Event related potencials
-A_ERP = mean(A,1);          %not-target
-B_ERP = mean(B,1);              %target 
+A_ERP = A_ERP_cum/no_A;     %cumulated devided by number of events
+A_ERO = A_ERO_cum/no_A;
+A_PLI = abs(A_PLI_cum/no_A);
 
-%% Event related oscillations: Stockwell Transform 
-for i = 1:size(A,1) 
-    [A_ST{i},t,f] = st_tuned(A(i,:),0,f_max,T, f_res);  %S-transformation
-end
+B_ERP = B_ERP_cum/no_B;     %cumulated devided by number of events
+B_ERO = B_ERO_cum/no_B;
+B_PLI = abs(B_PLI_cum/no_B);
 
-for i = 1:size(B,1)
-    [B_ST{i},t,f] = st_tuned(B(i,:),0,f_max,T, f_res);
-end
+%extra S-transformation for averaged ERP
 [A_AVG_ERO,t,f] = st_tuned(A_ERP,0,f_max,T, f_res);  %S-transformation
-[B_AVG_ERO,t,f] = st_tuned(B_ERP,0,f_max,T, f_res);      %for energy
-
+[B_AVG_ERO,t,f] = st_tuned(B_ERP,0,f_max,T, f_res);  %for energy
 A_AVG_ERO = abs(A_AVG_ERO);
 B_AVG_ERO = abs(B_AVG_ERO);
-
-%% Postprocessing
-for i = 1:size(A_ST{1},1)           %mean value calculation
-    for j = 1:size(A_ST{1},2)
-        cum_abs = 0;
-        cum_phase = 0;
-        for k = 1:length(A_ST)
-            cum_abs   = cum_abs + abs(A_ST{k}(i,j));
-            cum_phase = cum_phase + A_ST{k}(i,j)/abs(A_ST{k}(i,j));
-        end
-        A_ERO(i,j) = cum_abs/length(A_ST);         %mean absolute value
-        A_PLI(i,j)  = abs(cum_phase/length(A_ST));  %PLI
-        cum_abs = 0;
-        cum_phase = 0;
-        for k = 1:length(B_ST)
-            cum_abs   = cum_abs + abs(B_ST{k}(i,j));
-            cum_phase = cum_phase + B_ST{k}(i,j)/abs(B_ST{k}(i,j));
-        end
-        B_ERO(i,j) = cum_abs/length(B_ST);
-        B_PLI(i,j)  = abs(cum_phase/length(B_ST)); 
-    end
-end
 
 %% Normalization
 t = (t - t_pre)*1e3;       %Time axis [ms]
@@ -180,38 +193,6 @@ B_PLI = B_PLI(:,t_vis_idx(1):t_vis_idx(2));
 % A_rpow_AVG_ERO = A_AVG_ERO.^2/max(max(A_AVG_ERO.^2));    %Relative spectral pow. Averaged
 % B_rpow_AVG_ERO = B_AVG_ERO.^2/max(max(B_AVG_ERO.^2));
 
-end
-
-%% Parallel computation
-function subject = par_comp(subject);
-
-k = 1;
-for i = 1:length(subject)   %over all subject
-    for j = 1:length(subject(i).chan_label) %over all channels
-        data{k} = subject(i).raw_data{j};
-        flags{k} = subject(i).triggers;
-        k = k + 1;
-    end
-    subject(i).raw_data = 'erased by "par_comp()"'; %free memory
-end
-
-parfor i = 1:length(data)
-    [A_rpow_ERO{i}, B_rpow_ERO{i}, A_ERP{i}, B_ERP{i}, A_PLI{i}, B_PLI{i}, f{i}, t{i}] = EROS_CALC(data{i},flags{i});
-end
-k = 1;
-for i = 1:length(subject)   %over all subject
-    for j = 1:length(subject(i).chan_label) %over all channels
-        subject(i).ERO{1,j} = A_rpow_ERO{k};
-        subject(i).ERO{2,j} = B_rpow_ERO{k};
-        subject(i).ERP{1,j} = A_ERP{k};
-        subject(i).ERP{2,j} = B_ERP{k};        
-        subject(i).PLI{1,j} = A_PLI{k};
-        subject(i).PLI{2,j} = B_PLI{k};
-        subject(i).f = f{1};
-        subject(i).t = t{1};
-        k = k + 1;
-    end
-end
 end
 
 %% Data loading
