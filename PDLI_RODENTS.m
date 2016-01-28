@@ -38,7 +38,7 @@ end
 clear A_PDLI B_PDLI t f
 subject(end + 1) = crt_mean_sbj(subject);
 toc
-pdli_vis(subject)
+% pdli_vis(subject)
 save PDLI_out subject
 end
 
@@ -46,7 +46,7 @@ end
 function [A_PDLI,B_PDLI,t,f] = PDLI_CALC(subject)
 t_pre = 400*1e-3;            %start trial before trigger [s]
 t_post = 900*1e-3;          %stop trial after trigger [s]
-delay = subject.triggers(1,3); %some delay of trigger flag [s]
+delay = 0;                   %some delay of trigger flag [s]
 f_res = 1;                   %desired resolution in spectogram [Hz]
 f_max = 70;                  %maximum frequency in spectogram [Hz]
 
@@ -175,7 +175,6 @@ if any(com(:,5) == 3)
                flags(j,2) = com(i,3);
             end
         end
-        flags(1,3) = 0;                     %delay [s]    
     else        
         j = 1;
         for i = 1:size(com,1)
@@ -192,12 +191,10 @@ if any(com(:,5) == 3)
                j = j + 1;
             end
         end
-        flags(1,3) = 0;                     %delay [s]
     end
 else
     flags(:,1) = com(:,5);
-    flags(:,2) = com(:,3);
-    flags(1,3) = 70*1e-3;                    %delay [s] (uncorrected data)   
+    flags(:,2) = com(:,3);   
 end
     
         

@@ -8,7 +8,7 @@ function EROS_RODENTS
 %                 | (____/\| ) \ \__| (___) |/\____) |
 %                 (_______/|/   \__/(_______)\_______)
 %                                   
-%  modified> 30.9.2015                         coded by> Vlastimil Koudelka
+%  modified> 28.1.2016                         coded by> Vlastimil Koudelka
 %                                       used code by>Robert Glenn Stockwell
 % 
 % - for optimal performance set a number of parallel workers:
@@ -19,71 +19,73 @@ function EROS_RODENTS
 
 %% Batch execution
 close all
-[names,path] = uigetfile('*.mat','Open the source file','MultiSelect', 'on');
+[f_name,f_path] = uigetfile('*.mat','Open the source file','MultiSelect', 'on');
 tic
 
-if ~(iscell(names))                     %in the case of one file
-    names = {names};
-end
-
-[raw_data, flags, labels] = read_data(path,names);
-
-parfor i = 1:length(raw_data)   %over all channels
-    [NOT_T_ERO{i},T_ERO{i}, NOT_T_ERP_ERO{i}, T_ERP_ERO{i}, NOT_T_ERP{i}, T_ERP{i}, NOT_T_PLI{i}, T_PLI{i}, f{i},t{i}] = EROS_CALC(raw_data{i},flags{i});
-end
-
-MEAN_POW{1} = zeros(size(NOT_T_ERO{1}));  %CH1 target
-MEAN_POW{2} = zeros(size(NOT_T_ERO{1}));  %CH2 target
-MEAN_POW{3} = zeros(size(NOT_T_ERO{1}));  %CH1 not-target
-MEAN_POW{4} = zeros(size(NOT_T_ERO{1}));  %CH2 not_target
-MEAN_ERP_POW{1} = zeros(size(NOT_T_ERO{1}));  %CH1 target
-MEAN_ERP_POW{2} = zeros(size(NOT_T_ERO{1}));  %CH2 target
-MEAN_ERP_POW{3} = zeros(size(NOT_T_ERO{1}));  %CH1 not-target
-MEAN_ERP_POW{4} = zeros(size(NOT_T_ERO{1}));  %CH2 not_target
-MEAN_PLI{1} = zeros(size(NOT_T_PLI{1}));  %CH1 target
-MEAN_PLI{2} = zeros(size(NOT_T_PLI{1}));  %CH2 target
-MEAN_PLI{3} = zeros(size(NOT_T_PLI{1}));  %CH1 not-target
-MEAN_PLI{4} = zeros(size(NOT_T_PLI{1}));  %CH2 not_target
-MEAN_ERP{1} = zeros(size(T_ERP{1}));  %CH1 target
-MEAN_ERP{2} = zeros(size(T_ERP{1}));  %CH2 target
-MEAN_ERP{3} = zeros(size(T_ERP{1}));  %CH1 not-target
-MEAN_ERP{4} = zeros(size(T_ERP{1}));  %CH2 not_target
-
-
-n_mice = length(raw_data)/2;
-for i = 1:n_mice                    %average over all mice
-    MEAN_POW{1} = MEAN_POW{1} + T_ERO{2*i - 1}/n_mice;     %CH1 target
-    MEAN_POW{2} = MEAN_POW{2} + T_ERO{2*i}/n_mice;         %CH2 target
-    MEAN_POW{3} = MEAN_POW{3} + NOT_T_ERO{2*i - 1}/n_mice; %CH1 not-target
-    MEAN_POW{4} = MEAN_POW{4} + NOT_T_ERO{2*i}/n_mice;     %CH2 target
-    
-    MEAN_ERP_POW{1} = MEAN_ERP_POW{1} + T_ERP_ERO{2*i - 1}/n_mice;     %CH1 target
-    MEAN_ERP_POW{2} = MEAN_ERP_POW{2} + T_ERP_ERO{2*i}/n_mice;         %CH2 target
-    MEAN_ERP_POW{3} = MEAN_ERP_POW{3} + NOT_T_ERP_ERO{2*i - 1}/n_mice; %CH1 not-target
-    MEAN_ERP_POW{4} = MEAN_ERP_POW{4} + NOT_T_ERP_ERO{2*i}/n_mice;     %CH2 target
-    
-    MEAN_PLI{1} = MEAN_PLI{1} + T_PLI{2*i - 1}/n_mice;     %CH1 target
-    MEAN_PLI{2} = MEAN_PLI{2} + T_PLI{2*i}/n_mice;         %CH2 target
-    MEAN_PLI{3} = MEAN_PLI{3} + NOT_T_PLI{2*i - 1}/n_mice; %CH1 not-target
-    MEAN_PLI{4} = MEAN_PLI{4} + NOT_T_PLI{2*i}/n_mice;     %CH2 target
-    
-    MEAN_ERP{1} = MEAN_ERP{1} + T_ERP{2*i - 1}/n_mice;     %CH1 target
-    MEAN_ERP{2} = MEAN_ERP{2} + T_ERP{2*i}/n_mice;         %CH2 target
-    MEAN_ERP{3} = MEAN_ERP{3} + NOT_T_ERP{2*i - 1}/n_mice; %CH1 not-target
-    MEAN_ERP{4} = MEAN_ERP{4} + NOT_T_ERP{2*i}/n_mice;     %CH2 target
-end  
-f = f{1};
-t = t{1};
+subject = par_manage(f_path,f_name);
+subject(end+1) = crt_mean_sbj(subject);
 toc
-visualize_eros(MEAN_POW, MEAN_ERP_POW, MEAN_PLI, MEAN_ERP, f, t);
-save ROI_in MEAN_POW MEAN_ERP_POW MEAN_PLI MEAN_ERP T_ERO NOT_T_ERO T_ERP_ERO NOT_T_ERP_ERO T_ERP NOT_T_ERP T_PLI NOT_T_PLI labels f t
+% visualize_eros(subject(end));
+save ROI_in_new subject
 end
 
+%% Parallel computation - load, calculate in one function
+function subject = par_manage(path,name)
+
+if ~(iscell(name))                     %in the case of one file
+    name = {name};
+end
+
+raw_data = {};       %will accumulate data from all subjects
+triggers = {};       %will accumulate triggers from all subjects
+for i = 1:length(name)                 %over all files
+    load(fullfile(path,name{i}),'com', 'data','titles');
+    subject(i).n_ch = size(titles,1);
+ 
+    for j = 1:subject(i).n_ch
+        subject(i).chan_label{j} = {titles(j,:)}; %from char array to string
+    end
+                                                     
+    subject(i).f_name = name{i};
+    subject(i).f_path = path;
+    subject(i).triggers = load_flags(com);    
+    
+    data = vec2mat(data,length(data)/subject(i).n_ch); %channel per row
+    raw_data = [raw_data; mat2cell(data,ones(1,subject(i).n_ch))]; %channel per cell
+    
+    for j = 1:subject(i).n_ch       %sliced triggers (one trigger table per ch.)
+        triggers = [triggers; {subject(i).triggers}];
+    end
+    
+end
+clear data
+
+parfor i = 1:length(raw_data)     %each subject one thread
+    [A_ERO{i}, B_ERO{i}, A_AVG_ERO{i}, B_AVG_ERO{i}, A_ERP{i}, B_ERP{i}, A_PLI{i}, B_PLI{i}, f{i}, t{i}] = EROS_CALC(raw_data{i},triggers{i});
+end
+
+k = 1;
+for i = 1:length(subject)     %sorting the outputs     
+    for j = 1:subject(i).n_ch %over all cahnnels
+        subject(i).ERO{1,j} = A_ERO{k}; 
+        subject(i).ERO{2,j} = B_ERO{k};
+        subject(i).AVG_ERO{1,j} = A_AVG_ERO{k}; 
+        subject(i).AVG_ERO{2,j} = B_AVG_ERO{k};
+        subject(i).ERP{1,j} = A_ERP{k}; 
+        subject(i).ERP{2,j} = B_ERP{k};
+        subject(i).PLI{1,j} = A_PLI{k}; 
+        subject(i).PLI{2,j} = B_PLI{k};
+        k = k + 1;
+    end
+    subject(i).t = t{i};
+    subject(i).f = f{i}; 
+end
+end
 %% EROS calculation
-function [A_rpow_ERO, B_rpow_ERO, A_rpow_AVG_ERO, B_rpow_AVG_ERO, NOT_T_ERP, T_ERP, A_PLI, B_PLI, f, t] = EROS_CALC(data, flags)
+function [A_ERO, B_ERO, A_AVG_ERO, B_AVG_ERO, A_ERP, B_ERP, A_PLI, B_PLI, f, t] = EROS_CALC(data, flags)
 t_pre = 600*1e-3;            %start trial before trigger [s]
 t_post = 1100*1e-3;          %stop trial after trigger [s]
-delay = flags(1,3);          %some delay of trigger flag [s]
+delay = 0;                   %some delay of trigger flag [s]
 f_res = 1;                   %desired resolution in spectogram [Hz]
 f_max = 70;                  %maximum frequency in spectogram [Hz]
 
@@ -109,64 +111,47 @@ if ((flags(end,2)- n_delay + n_post)>length(data))
     flags = flags(1:end-1,:);                %^the last segment overflow 
 end
 
-j = 1;
-k = 1;
+A_ERP_cum = 0; B_ERP_cum = 0; A_ERO_cum = 0; B_ERO_cum = 0; 
+A_PLI_cum = 0; B_PLI_cum = 0;
+no_A = 0; no_B = 0;
+
 for i = 1:size(flags,1)                             %the first event
     if (flags(i,1) == 1)
         start_idx = flags(i,2) - n_delay - n_pre;   %begin idx. of trial
         stop_idx = flags(i,2) - n_delay + n_post;   %end idx. of trial
-        A(j,:) = data(start_idx:stop_idx);          %trial segment   
-        j = j + 1;        
-    end
-    
+        [A_ST,t,f] = st_tuned(data(start_idx:stop_idx),0,f_max,T, f_res);  %S-transformation  
+        
+        A_ERP_cum = A_ERP_cum + data(start_idx:stop_idx);   %cumulative
+        A_ERO_cum = A_ERO_cum + abs(A_ST);                  %operation
+        A_PLI_cum = A_PLI_cum + A_ST./abs(A_ST);            %for average
+        no_A = no_A + 1;        
+    end    
     if (flags(i,1) == 2)                            %the second event
         start_idx = flags(i,2) - n_delay - n_pre;
         stop_idx = flags(i,2) - n_delay + n_post;
-        B(k,:) = data(start_idx:stop_idx);
-        k = k + 1;  
+        [B_ST,t,f] = st_tuned(data(start_idx:stop_idx),0,f_max,T, f_res);  %S-transformation  
+        
+        B_ERP_cum = B_ERP_cum + data(start_idx:stop_idx);   %cumulative
+        B_ERO_cum = B_ERO_cum + abs(B_ST);                  %operation
+        B_PLI_cum = B_PLI_cum + B_ST./abs(B_ST);            %for average                
+        no_B = no_B + 1;  
     end
 end
+clear data;
 
-%% Event related potencials
-T_ERP = mean(B,1);              %target 
-NOT_T_ERP = mean(A,1);          %not-target
+A_ERP = A_ERP_cum/no_A;     %cumulated devided by number of events
+A_ERO = A_ERO_cum/no_A;
+A_PLI = abs(A_PLI_cum/no_A);
 
-%% Event related oscillations: Stockwell Transform 
-for i = 1:size(A,1) 
-    [A_ST{i},t,f] = st_tuned(A(i,:),0,f_max,T, f_res);  %S-transformation
-end
+B_ERP = B_ERP_cum/no_B;     %cumulated devided by number of events
+B_ERO = B_ERO_cum/no_B;
+B_PLI = abs(B_PLI_cum/no_B);
 
-for i = 1:size(B,1)
-    [B_ST{i},t,f] = st_tuned(B(i,:),0,f_max,T, f_res);
-end
-
-[A_AVG_ERO,t,f] = st_tuned(NOT_T_ERP,0,f_max,T, f_res);  %S-transformation
-[B_AVG_ERO,t,f] = st_tuned(T_ERP,0,f_max,T, f_res);      %for energy
-
+%extra S-transformation for averaged ERP
+[A_AVG_ERO,t,f] = st_tuned(A_ERP,0,f_max,T, f_res);  %S-transformation
+[B_AVG_ERO,t,f] = st_tuned(B_ERP,0,f_max,T, f_res);  %for energy
 A_AVG_ERO = abs(A_AVG_ERO);
 B_AVG_ERO = abs(B_AVG_ERO);
-
-%% Postprocessing
-for i = 1:size(A_ST{1},1)           %mean value calculation
-    for j = 1:size(A_ST{1},2)
-        cum_abs = 0;
-        cum_phase = 0;
-        for k = 1:length(A_ST)
-            cum_abs   = cum_abs + abs(A_ST{k}(i,j));
-            cum_phase = cum_phase + A_ST{k}(i,j)/abs(A_ST{k}(i,j));
-        end
-        A_ERO(i,j) = cum_abs/length(A_ST);         %mean absolute value
-        A_PLI(i,j)  = abs(cum_phase/length(A_ST));  %PLI
-        cum_abs = 0;
-        cum_phase = 0;
-        for k = 1:length(B_ST)
-            cum_abs   = cum_abs + abs(B_ST{k}(i,j));
-            cum_phase = cum_phase + B_ST{k}(i,j)/abs(B_ST{k}(i,j));
-        end
-        B_ERO(i,j) = cum_abs/length(B_ST);
-        B_PLI(i,j)  = abs(cum_phase/length(B_ST)); 
-    end
-end
 
 %% Normalization
 t = (t - t_pre)*1e3;       %Time axis [ms]
@@ -194,9 +179,11 @@ base_pow{1} = mean(A_ERO(:,t_idx(1):t_idx(2)),2);
 base_pow{2} = mean(B_ERO(:,t_idx(1):t_idx(2)),2);
 [c, base_pow{2}] = meshgrid(1:size(B_ERO,2),base_pow{2}); 
 
-A_rpow_ERO = A_ERO(:,t_vis_idx(1):t_vis_idx(2))./base_pow{1}(:,t_vis_idx(1):t_vis_idx(2));
-B_rpow_ERO = B_ERO(:,t_vis_idx(1):t_vis_idx(2))./base_pow{2}(:,t_vis_idx(1):t_vis_idx(2));
-
+A_ERO = (A_ERO(:,t_vis_idx(1):t_vis_idx(2)) - base_pow{1}(:,t_vis_idx(1):t_vis_idx(2)))...
+        ./base_pow{1}(:,t_vis_idx(1):t_vis_idx(2))*100;
+        
+B_ERO = (B_ERO(:,t_vis_idx(1):t_vis_idx(2)) - base_pow{2}(:,t_vis_idx(1):t_vis_idx(2)))...
+        ./base_pow{2}(:,t_vis_idx(1):t_vis_idx(2))*100;
 % ERP based ERO
 A_AVG_ERO = A_AVG_ERO.^2;
 B_AVG_ERO = B_AVG_ERO.^2;
@@ -206,11 +193,13 @@ base_pow{1} = mean(A_AVG_ERO(:,t_idx(1):t_idx(2)),2);
 base_pow{2} = mean(B_AVG_ERO(:,t_idx(1):t_idx(2)),2);
 [c, base_pow{2}] = meshgrid(1:size(B_AVG_ERO,2),base_pow{2});
 
-A_rpow_AVG_ERO = A_AVG_ERO(:,t_vis_idx(1):t_vis_idx(2))./base_pow{1}(:,t_vis_idx(1):t_vis_idx(2));
-B_rpow_AVG_ERO = B_AVG_ERO(:,t_vis_idx(1):t_vis_idx(2))./base_pow{2}(:,t_vis_idx(1):t_vis_idx(2));
+A_AVG_ERO = (A_AVG_ERO(:,t_vis_idx(1):t_vis_idx(2)) - base_pow{1}(:,t_vis_idx(1):t_vis_idx(2)))...
+            ./base_pow{1}(:,t_vis_idx(1):t_vis_idx(2))*100;
+B_AVG_ERO = (B_AVG_ERO(:,t_vis_idx(1):t_vis_idx(2)) - base_pow{2}(:,t_vis_idx(1):t_vis_idx(2)))...
+            ./base_pow{2}(:,t_vis_idx(1):t_vis_idx(2))*100;
 
-T_ERP = T_ERP(:,t_vis_idx(1):t_vis_idx(2));           %short the time series correspondingly
-NOT_T_ERP = NOT_T_ERP(:,t_vis_idx(1):t_vis_idx(2));
+A_ERP = A_ERP(:,t_vis_idx(1):t_vis_idx(2));           %shorten the time series correspondingly
+B_ERP = B_ERP(:,t_vis_idx(1):t_vis_idx(2));
 
 A_PLI = A_PLI(:,t_vis_idx(1):t_vis_idx(2));
 B_PLI = B_PLI(:,t_vis_idx(1):t_vis_idx(2));
@@ -225,37 +214,7 @@ B_PLI = B_PLI(:,t_vis_idx(1):t_vis_idx(2));
 
 end
 
-%% Data loading
-function [raw_data, flags, labels] = read_data(path,names)
 
-n_sig = 0;                              %a number of signals
-for i = 1:length(names)                 %over all files
-    load(fullfile(path,names{i}),'com', 'data','titles');
-    if (size(titles,1) == 2)
-        raw_data{n_sig + 1} = data(1:length(data)/2);
-        flags{n_sig + 1} = load_flags(com);
-        labels{n_sig + 1} = fullfile(path,names{i});
-        raw_data{n_sig + 2} = data(length(data)/2 + 1:end);
-        flags{n_sig + 2} = load_flags(com); 
-        labels{n_sig + 2} = fullfile(path,names{i});
-        n_sig = n_sig + 2;
-    else
-        raw_data{n_sig + 1} = data(1:length(data)/4);
-        flags{n_sig + 1} = load_flags(com);
-        labels{n_sig + 1} = fullfile(path,names{i});
-        raw_data{n_sig + 2} = data(length(data)/4 + 1:2*length(data)/4);
-        flags{n_sig + 2} = load_flags(com);
-        labels{n_sig + 2} = fullfile(path,names{i});
-        raw_data{n_sig + 3} = data(2*length(data)/4 + 1:3*length(data)/4);
-        flags{n_sig + 3} = load_flags(com);
-        labels{n_sig + 3} = fullfile(path,names{i});
-        raw_data{n_sig + 4} = data(3*length(data)/4 + 1:end);
-        flags{n_sig + 4} = load_flags(com);
-        labels{n_sig + 4} = fullfile(path,names{i});
-        n_sig = n_sig + 4;
-    end
-end
-end
 
 %% Flag loading
 function flags = load_flags(com)
@@ -287,8 +246,7 @@ if any(com(:,5) == 3)
             if (com(i,5) == 1)              %sample index
                flags(j,2) = com(i,3);
             end
-        end
-        flags(1,3) = 0;                     %delay [s]    
+        end  
     else        
         j = 1;
         for i = 1:size(com,1)
@@ -305,12 +263,10 @@ if any(com(:,5) == 3)
                j = j + 1;
             end
         end
-        flags(1,3) = 0;                     %delay [s]
     end
 else
     flags(:,1) = com(:,5);
-    flags(:,2) = com(:,3);
-    flags(1,3) = 70*1e-3;                    %delay [s] (uncorrected data)   
+    flags(:,2) = com(:,3);   
 end
     
         
@@ -320,29 +276,29 @@ end
 
 %% Visualization
 
-function visualize_eros(ERO_vis, AVG_ERO_vis, PLI_vis, ERP_vis, f, t)
+function visualize_eros(subject)
 %% EROS
 figure
 subplot(2,2,1)
-contourf(t,f,ERO_vis{1},20,'LineStyle','none')
+contourf(subject.t,subject.f,subject.ERO{2,1},20,'LineStyle','none')
 xlabel('time [ms]')
 ylabel('frequency [Hz]')
 title('ENERGY > CH1 - target')
 
 subplot(2,2,2)
-contourf(t,f,ERO_vis{2},20,'LineStyle','none')
+contourf(subject.t,subject.f,subject.ERO{2,2},20,'LineStyle','none')
 xlabel('time [ms]')
 ylabel('frequency [Hz]')
 title('ENERGY > CH2 - target')
 
 subplot(2,2,3)
-contourf(t,f,ERO_vis{3},20,'LineStyle','none')
+contourf(subject.t,subject.f,subject.ERO{1,1},20,'LineStyle','none')
 xlabel('time [ms]')
 ylabel('frequency [Hz]')
 title('ENERGY > CH1 - non-target')
 
 subplot(2,2,4)
-contourf(t,f,ERO_vis{4},20,'LineStyle','none')
+contourf(subject.t,subject.f,subject.ERO{1,2},20,'LineStyle','none')
 xlabel('time [ms]')
 ylabel('frequency [Hz]')
 title('ENERGY > CH2 - non-target')
@@ -350,25 +306,25 @@ title('ENERGY > CH2 - non-target')
 %% EROS AVERAGED (based on ERP)
 figure
 subplot(2,2,1)
-contourf(t,f,AVG_ERO_vis{1},20,'LineStyle','none')
+contourf(subject.t,subject.f,subject.AVG_ERO{2,1},20,'LineStyle','none')
 xlabel('time [ms]')
 ylabel('frequency [Hz]')
 title('ERP ENERGY > CH1 - target')
 
 subplot(2,2,2)
-contourf(t,f,AVG_ERO_vis{2},20,'LineStyle','none')
+contourf(subject.t,subject.f,subject.AVG_ERO{2,2},20,'LineStyle','none')
 xlabel('time [ms]')
 ylabel('frequency [Hz]')
 title('ERP ENERGY > CH2 - target')
 
 subplot(2,2,3)
-contourf(t,f,AVG_ERO_vis{3},20,'LineStyle','none')
+contourf(subject.t,subject.f,subject.AVG_ERO{1,1},20,'LineStyle','none')
 xlabel('time [ms]')
 ylabel('frequency [Hz]')
 title('ERP ENERGY > CH1 - non-target')
 
 subplot(2,2,4)
-contourf(t,f,AVG_ERO_vis{4},20,'LineStyle','none')
+contourf(subject.t,subject.f,subject.AVG_ERO{1,2},20,'LineStyle','none')
 xlabel('time [ms]')
 ylabel('frequency [Hz]')
 title('ERP ENERGY > CH2 - non-target')
@@ -376,25 +332,25 @@ title('ERP ENERGY > CH2 - non-target')
 %% PLI
 figure
 subplot(2,2,1)
-contourf(t,f,PLI_vis{1},20,'LineStyle','none')
+contourf(subject.t,subject.f,subject.PLI{2,1},20,'LineStyle','none')
 xlabel('time [ms]')
 ylabel('frequency [Hz]')
 title('PLI > CH1 - target')
 
 subplot(2,2,2)
-contourf(t,f,PLI_vis{2},20,'LineStyle','none')
+contourf(subject.t,subject.f,subject.PLI{2,2},20,'LineStyle','none')
 xlabel('time [ms]')
 ylabel('frequency [Hz]')
 title('PLI > CH2 - target')
 
 subplot(2,2,3)
-contourf(t,f,PLI_vis{3},20,'LineStyle','none')
+contourf(subject.t,subject.f,subject.PLI{1,1},20,'LineStyle','none')
 xlabel('time [ms]')
 ylabel('frequency [Hz]')
 title('PLI > CH1 - non-target')
 
 subplot(2,2,4)
-contourf(t,f,PLI_vis{4},20,'LineStyle','none')
+contourf(subject.t,subject.f,subject.PLI{1,2},20,'LineStyle','none')
 xlabel('time [ms]')
 ylabel('frequency [Hz]')
 title('PLI > CH2 - non-target')
@@ -402,28 +358,54 @@ title('PLI > CH2 - non-target')
 %% ERP
 figure
 subplot(2,2,1)
-plot(t,ERP_vis{1})
+plot(subject.t,subject.ERP{2,1})
 xlabel('time [ms]')
 ylabel('voltage [uV]')
 title('ERP > CH1 - target')
 
 subplot(2,2,2)
-plot(t,ERP_vis{2})
+plot(subject.t,subject.ERP{2,2})
 xlabel('time [ms]')
 ylabel('voltage [uV]')
 title('ERP > CH2 - target')
 
 subplot(2,2,3)
-plot(t,ERP_vis{3})
+plot(subject.t,subject.ERP{1,1})
 xlabel('time [ms]')
 ylabel('voltage [uV]')
 title('ERP > CH1 - non-target')
 
 subplot(2,2,4)
-plot(t,ERP_vis{4})
+plot(subject.t,subject.ERP{1,2})
 xlabel('time [ms]')
 ylabel('voltage [uV]')
 title('ERP > CH2 - non-target')
 end
 
+%% Average
+function mean_sbj = crt_mean_sbj(subject)
 
+n_sbj = length(subject);
+n_evt = 2;
+n_ch = subject(1).n_ch;
+
+for i = 1:n_evt
+    for j = 1:n_ch    
+        for k = 2:n_sbj             %first subj is cummulative
+            subject(1).ERO{i,j} = subject(1).ERO{i,j} + subject(k).ERO{i,j};
+            subject(1).PLI{i,j} = subject(1).PLI{i,j} + subject(k).PLI{i,j};
+            subject(1).ERP{i,j} = subject(1).ERP{i,j} + subject(k).ERP{i,j};
+            subject(1).AVG_ERO{i,j} = subject(1).AVG_ERO{i,j} + subject(k).AVG_ERO{i,j};
+        end
+        subject(1).ERO{i,j} = subject(1).ERO{i,j} / n_sbj;
+        subject(1).PLI{i,j} = subject(1).PLI{i,j} / n_sbj;
+        subject(1).ERP{i,j} = subject(1).ERP{i,j} / n_sbj;
+        subject(1).AVG_ERO{i,j} = subject(1).AVG_ERO{i,j} / n_sbj;
+    end            
+end
+
+mean_sbj = subject(1);
+mean_sbj.f_name = 'MEAN SUBJECT';
+mean_sbj.f_path = 'N/A';
+    
+end
