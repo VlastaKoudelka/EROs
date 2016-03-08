@@ -21,7 +21,7 @@ subject = par_manage(f_path,f_name);
 subject(end + 1) = crt_mean_sbj(subject);
 save ROI_in subject
 toc
-% visualize_eros(subject);
+visualize_eros(subject);
 
 end
 
@@ -208,8 +208,10 @@ base_pow{1} = mean(A_ERO(:,t_idx(1):t_idx(2)),2);
 base_pow{2} = mean(B_ERO(:,t_idx(1):t_idx(2)),2);
 [c, base_pow{2}] = meshgrid(1:size(B_ERO,2),base_pow{2}); 
 
-A_rpow_ERO = A_ERO(:,t_vis_idx(1):t_vis_idx(2))./base_pow{1}(:,t_vis_idx(1):t_vis_idx(2));
-B_rpow_ERO = B_ERO(:,t_vis_idx(1):t_vis_idx(2))./base_pow{2}(:,t_vis_idx(1):t_vis_idx(2));
+A_rpow_ERO = (A_ERO(:,t_vis_idx(1):t_vis_idx(2)) - base_pow{1}(:,t_vis_idx(1):t_vis_idx(2)))... 
+            ./base_pow{1}(:,t_vis_idx(1):t_vis_idx(2))*100;
+B_rpow_ERO = (B_ERO(:,t_vis_idx(1):t_vis_idx(2)) - base_pow{2}(:,t_vis_idx(1):t_vis_idx(2)))...
+            ./base_pow{2}(:,t_vis_idx(1):t_vis_idx(2))*100;
 
 % ERP based ERO
 A_AVG_ERO = A_AVG_ERO.^2;
@@ -220,8 +222,10 @@ base_pow{1} = mean(A_AVG_ERO(:,t_idx(1):t_idx(2)),2);
 base_pow{2} = mean(B_AVG_ERO(:,t_idx(1):t_idx(2)),2);
 [c, base_pow{2}] = meshgrid(1:size(B_AVG_ERO,2),base_pow{2});
 
-A_rpow_AVG_ERO = A_AVG_ERO(:,t_vis_idx(1):t_vis_idx(2))./base_pow{1}(:,t_vis_idx(1):t_vis_idx(2));
-B_rpow_AVG_ERO = B_AVG_ERO(:,t_vis_idx(1):t_vis_idx(2))./base_pow{2}(:,t_vis_idx(1):t_vis_idx(2));
+A_rpow_AVG_ERO = (A_AVG_ERO(:,t_vis_idx(1):t_vis_idx(2)) - base_pow{1}(:,t_vis_idx(1):t_vis_idx(2)))...
+                ./base_pow{1}(:,t_vis_idx(1):t_vis_idx(2))*100;
+B_rpow_AVG_ERO = (B_AVG_ERO(:,t_vis_idx(1):t_vis_idx(2)) - base_pow{2}(:,t_vis_idx(1):t_vis_idx(2)))...
+                ./base_pow{2}(:,t_vis_idx(1):t_vis_idx(2))*100;
 
 B_ERP = B_ERP(:,t_vis_idx(1):t_vis_idx(2));           %short the time series correspondingly
 A_ERP = A_ERP(:,t_vis_idx(1):t_vis_idx(2));
