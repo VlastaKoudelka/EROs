@@ -8,7 +8,7 @@ function EROS_RODENTS
 %                 | (____/\| ) \ \__| (___) |/\____) |
 %                 (_______/|/   \__/(_______)\_______)
 %                                   
-%  modified> 28.1.2016                         coded by> Vlastimil Koudelka
+%  modified> 22.6.2016                         coded by> Vlastimil Koudelka
 %                                       used code by>Robert Glenn Stockwell
 % 
 % - for optimal performance set a number of parallel workers:
@@ -25,7 +25,7 @@ tic
 subject = par_manage(f_path,f_name);
 subject(end+1) = crt_mean_sbj(subject);
 toc
-% visualize_eros(subject(end));
+visualize_eros(subject(end));
 save ROI_in_new subject
 end
 
@@ -39,16 +39,16 @@ end
 raw_data = {};       %will accumulate data from all subjects
 triggers = {};       %will accumulate triggers from all subjects
 for i = 1:length(name)                 %over all files
-    load(fullfile(path,name{i}),'com', 'data','titles');
+    load(fullfile(path,name{i}),'com', 'data','titles','samplerate');
     subject(i).n_ch = size(titles,1);
  
     for j = 1:subject(i).n_ch
         subject(i).chan_label{j} = {titles(j,:)}; %from char array to string
     end
-                                                     
+    subject(i).Fs_raw = samplerate(1);                                                 
     subject(i).f_name = name{i};
     subject(i).f_path = path;
-    subject(i).triggers = load_flags(com);    
+    subject(i).triggers = load_flags(com);
     
     data = vec2mat(data,length(data)/subject(i).n_ch); %channel per row
     raw_data = [raw_data; mat2cell(data,ones(1,subject(i).n_ch))]; %channel per cell
@@ -60,8 +60,8 @@ for i = 1:length(name)                 %over all files
 end
 clear data
 
-parfor i = 1:length(raw_data)     %each subject one thread
-    [A_ERO{i}, B_ERO{i}, A_AVG_ERO{i}, B_AVG_ERO{i}, A_ERP{i}, B_ERP{i}, A_PLI{i}, B_PLI{i}, f{i}, t{i}] = EROS_CALC(raw_data{i},triggers{i});
+parfor i = 1:length(raw_data)     %each channel one thread
+    [A_ERO{i}, B_ERO{i}, A_AVG_ERO{i}, B_AVG_ERO{i}, A_ERP{i}, B_ERP{i}, A_PLI{i}, B_PLI{i}, f{i}, t{i}] = EROS_CALC(raw_data{i},triggers{i},subject(1).Fs_raw);
 end
 
 k = 1;
@@ -82,14 +82,14 @@ for i = 1:length(subject)     %sorting the outputs
 end
 end
 %% EROS calculation
-function [A_ERO, B_ERO, A_AVG_ERO, B_AVG_ERO, A_ERP, B_ERP, A_PLI, B_PLI, f, t] = EROS_CALC(data, flags)
+function [A_ERO, B_ERO, A_AVG_ERO, B_AVG_ERO, A_ERP, B_ERP, A_PLI, B_PLI, f, t] = EROS_CALC(data, flags,Fs_raw)
 t_pre = 600*1e-3;            %start trial before trigger [s]
 t_post = 1100*1e-3;          %stop trial after trigger [s]
 delay = 0;                   %some delay of trigger flag [s]
 f_res = 1;                   %desired resolution in spectogram [Hz]
 f_max = 70;                  %maximum frequency in spectogram [Hz]
 
-Fs = 250;                               %down-sampled 4kHz -> 250Hz        
+Fs = 4000;                               %down-sampled 4kHz -> 1kHz        
 T = 1/Fs;                               %sample period
 n_pre = round(t_pre*Fs);                % #samples before trigger
 n_post = round(t_post*Fs);              % #samples after trigger
@@ -101,10 +101,21 @@ load filters.mat Num                    %the same anti-aliasing filter for:
                                         %Fs=4kHz, fp=400Hz, fs=500Hz
                                         %Fs=1kHz, fp=100Hz, fs=125Hz
                                         
+flags(:,2) = round(flags(:,2)/(Fs_raw/Fs));
+
+if (Fs == 250)
 data = filtfilt(Num,1,data);            %Zero phase filtering
 data = downsample(data,4)';              %Fs 4kHz -> 1kHz
+end
+
+if (Fs == 250) || ((Fs == 1000))
 data = filtfilt(Num,1,data);            %Zero phase filtering
 data = downsample(data,4)';              %Fs 1kHz -> 250Hz
+end
+
+if ((Fs ~= 250) && (Fs ~= 1000) && (Fs ~= 4000))
+    error('Wrong sampling rate, try 250Hz, 1000Hz, or 4000Hz!')
+end
 
 %% Segmantation
 if ((flags(end,2)- n_delay + n_post)>length(data))
@@ -198,8 +209,8 @@ A_AVG_ERO = (A_AVG_ERO(:,t_vis_idx(1):t_vis_idx(2)) - base_pow{1}(:,t_vis_idx(1)
 B_AVG_ERO = (B_AVG_ERO(:,t_vis_idx(1):t_vis_idx(2)) - base_pow{2}(:,t_vis_idx(1):t_vis_idx(2)))...
             ./base_pow{2}(:,t_vis_idx(1):t_vis_idx(2))*100;
 
-A_ERP = A_ERP(:,t_vis_idx(1):t_vis_idx(2));           %shorten the time series correspondingly
-B_ERP = B_ERP(:,t_vis_idx(1):t_vis_idx(2));
+A_ERP = A_ERP(t_vis_idx(1):t_vis_idx(2));           %shorten the time series correspondingly
+B_ERP = B_ERP(t_vis_idx(1):t_vis_idx(2));
 
 A_PLI = A_PLI(:,t_vis_idx(1):t_vis_idx(2));
 B_PLI = B_PLI(:,t_vis_idx(1):t_vis_idx(2));
@@ -267,11 +278,7 @@ if any(com(:,5) == 3)
 else
     flags(:,1) = com(:,5);
     flags(:,2) = com(:,3);   
-end
-    
-        
-
-flags(:,2) = round(flags(:,2)/16);  %down-sampled
+end          
 end
 
 %% Visualization
