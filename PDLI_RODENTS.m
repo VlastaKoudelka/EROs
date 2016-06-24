@@ -10,7 +10,7 @@ function PDLI_RODENTS
 %        _\/\\\_____________\/\\\\\\\\\\\\/___\/\\\\\\\\\\\\__/\\\\\\\\\\\_ 
 %         _\///______________\////////////_____\////////////__\///////////_
 % 
-%modified> 8.12.2015                           coded by> Vlastimil Koudelka
+%modified> 24.6.2016                           coded by> Vlastimil Koudelka
 %                                       used code by>Robert Glenn Stockwell
 %
 % The function calculates  Phase Difference Locking Index between EEG chan.
@@ -38,7 +38,7 @@ end
 clear A_PDLI B_PDLI t f
 subject(end + 1) = crt_mean_sbj(subject);
 toc
-% pdli_vis(subject)
+pdli_vis(subject)
 save PDLI_out subject
 end
 
@@ -61,11 +61,23 @@ N = n_pre + n_post + 1;                 % #samples within a trial
 load filters.mat Num                    %the same anti-aliasing filter for:
                                         %Fs=4kHz, fp=400Hz, fs=500Hz
                                         %Fs=1kHz, fp=100Hz, fs=125Hz
+                                        
+subject.triggers(:,2) = round(subject.triggers(:,2)/(subject.Fs_raw/Fs));  %down-sampled flags                                        
+
 for i = 1:subject.n_ch
+    if (Fs == 250)
     subject.raw_data{i} = filtfilt(Num,1,subject.raw_data{i});            %Zero phase filtering
     subject.raw_data{i} = downsample(subject.raw_data{i},4)';              %Fs 4kHz -> 1kHz
+    end
+    
+    if (Fs == 250) || ((Fs == 1000))
     subject.raw_data{i} = filtfilt(Num,1,subject.raw_data{i});            %Zero phase filtering
     subject.raw_data{i} = downsample(subject.raw_data{i},4)';              %Fs 1kHz -> 250Hz
+    end
+    if ((Fs ~= 250) && (Fs ~= 1000) && (Fs ~= 4000))
+        error('Wrong sampling rate, try 250Hz, 1000Hz, or 4000Hz!')
+        break
+    end
 end
 
 %% Calculation
@@ -129,7 +141,7 @@ function subject = read_data(path,names)
 
 n_sig = 0;                              %a number of signals
 for i = 1:length(names)                 %over all files
-    load(fullfile(path,names{i}),'com', 'data','titles');
+    load(fullfile(path,names{i}),'com', 'data','titles','samplerate');
     subject(i).n_ch = size(titles,1);
     raw_data = vec2mat(data,length(data)/subject(i).n_ch);
     for j = 1:size(raw_data,1)  %mat2cell
@@ -138,6 +150,7 @@ for i = 1:length(names)                 %over all files
     for j = 1:subject(i).n_ch
         subject(i).chan_label{j} = {titles(j,:)}; %from char array to string
     end
+    subject(i).Fs_raw = samplerate(1);
     subject(i).f_name = names{i};
     subject(i).f_path = path;
     subject(i).triggers = load_flags(com);
@@ -197,9 +210,7 @@ else
     flags(:,2) = com(:,3);   
 end
     
-        
-
-flags(:,2) = round(flags(:,2)/16);  %down-sampled
+       
 end
 
 function mean_sbj = crt_mean_sbj(subject)
