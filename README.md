@@ -21,8 +21,9 @@ Both scripts accept .mat files structure exported by LabCart software. For EDF s
 
 Calculate, visualize, and store Event Related Ocilations (ERO), Phase Locking Index (PLI), and Event Related Potencial (ERP). Additional output is Averaged Event Related Ocilations (AVG_ERO), which is the ERO obtained from ERP.
 
+For optimal performance set a number of parallel workers: Prallel->Manage Cluster Profiles->Cluster Profile->Edit->NumWorkers
 
-
+For older MATLAB versions execute "matlabpool open" before calculation.
 
 Output data is an array of subjects:
 ```MATLAB
