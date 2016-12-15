@@ -1,4 +1,8 @@
 # EROS HUMAN
+##Authors:
+* Vlastimil Koudelka
+* Grygoriy Tsenov
+
 For animal version please swith to **"master"** branch.
 
 ##Experimental code for Event Realated Oscilation detection.
