@@ -42,7 +42,7 @@ For older MATLAB versions execute "matlabpool open" before calculation.
 
 ####Store your results:
 
-Output data is an array of subjects:
+Output data from **EROS_RODENTS.m** is the following array of subjects:
 ```MATLAB
 subject(i)
 ```
@@ -58,6 +58,22 @@ ans =
            ERP: {2x2 cell}                         %(1,2,3...) 
            PLI: {2x2 cell}                         %according to event list
 ```
-    
-AVG_ERO is ERO obtained from ERP signal.
+Output data from **DPLI_RODENTS.m** is the following array of subjects:
 
+```MATLAB
+subject(1)
+```
+ans = 
+```MATLAB
+          n_ch: 2
+      raw_data: {[1x5974400 double]  [1x5974400 double]}
+    chan_label: {{1x1 cell}  {1x1 cell}}
+        Fs_raw: 4000
+        f_name: 'P2_NT4T880 28MAY2014_2chan.mat'
+        f_path: 'D:\Grisa\DPLI\'
+      triggers: [320x2 double]
+        A_PDLI: {2x1 cell}              %DPLI for event A
+        B_PDLI: {2x1 cell}              %DPLI for event B
+             t: [1x326 double]
+             f: [1x92 double]
+```             
