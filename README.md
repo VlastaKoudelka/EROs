@@ -6,9 +6,9 @@ Developed software calculates advanced time-frequency quantities addressing evok
 
 
 output data is an array of subjects:
-
->> subject(i)
-
+```MATLAB
+subject(i)
+```
 ans = 
 ```MATLAB
           n_ch: 2                           %number of channels
