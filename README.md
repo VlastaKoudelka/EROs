@@ -27,12 +27,49 @@ For older MATLAB versions execute "matlabpool open" before calculation.
 
 ####Open your dataset:
 
-####select multiple electrodes (use control+click or multiple selectin) the script evaluates all
+![Open](https://github.com/VlastaKoudelka/EROs/blob/human/Doc/Open.png)
+
+####Select multiple electrodes (use control+click or multiple selectin) for calculation:
+
+![sel_el](https://github.com/VlastaKoudelka/EROs/blob/human/Doc/sel_el.png)
+
+####Select triggers (target/non-target):
+
+![sel_trg](https://github.com/VlastaKoudelka/EROs/blob/human/Doc/sel_trig.png)
+
+####Select files to visualize, MEAN SUBJECT structure contains averages values of ERP, PLI, ERP over all files - the script gives names to figures and subplots automatically:
+
+![sel_file](https://github.com/VlastaKoudelka/EROs/blob/human/Doc/sel_file.png)
+
+####Vizualize:
+
+![result](https://github.com/VlastaKoudelka/EROs/blob/human/Doc/result.png)
+
+####Store your results:
+
+Output date are stored into an array of structures:
+
+```MATLAB
+subject(1)
+```
+
+ans = 
+```MATLAB
+        f_name: 'Easrec_audio_ep-base_AM-v3_150616-0839.c0.edf'
+        f_path: 'D:\EP_misa\adults\'
+          n_ch: 1
+    chan_label: {'O2'}
+    trig_label: {'Trigger-31'  'Trigger-32'}
+      triggers: [200x2 double]
+           ERO: {2x1 cell}    %two cells, two triggers
+           ERP: {2x1 cell}    
+           PLI: {2x1 cell}
+             f: [1x69 double]
+```
 
 
-* select two triggers (target/non-target) - the script operates on the fixed protocol
-* select files to visualize - the script gives names to figures and subplots automatically
-* MEAN SUBJECT structure contains averages values of ERP,PLI,ERP over all files
+
+
 
 
 
