@@ -17,9 +17,15 @@ PDLI_RODENTS.m
 ```
 Both scripts accept .mat files structure exported by LabCart software. For EDF support, switch to the **"human"** branch.
 
-###EROS_RODENTS.m
+####EROS_RODENTS.m
 
-Calculate, visualize, and store Event Related Ocilations (ERO), Phase Locking Index (PLI), and Event Related Potencial (ERP). Additional output is Averaged Event Related Ocilations (AVG_ERO), which is the ERO obtained from ERP.
+Calculates, visualizes, and stores Event Related Ocilations (ERO), Phase Locking Index (PLI), and Event Related Potencial (ERP). Additional output is Averaged Event Related Ocilations (AVG_ERO), which is the ERO obtained from ERP.
+
+####PDLI_RODENTS.m
+
+Calculates, visualizes, and stores Phase Locking Index as a functional conectivity measure between electrodes. All combinations of electrodes are provided.
+
+###Workflow
 
 ####Configure parallel computation:
 For optimal performance set a number of parallel workers: Prallel->Manage Cluster Profiles->Cluster Profile->Edit->NumWorkers
