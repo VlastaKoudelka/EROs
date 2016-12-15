@@ -1,9 +1,9 @@
-# EROS HUMAN
+#EROs, PLI, & DPLI Analyzer
 ##Authors:
 * Vlastimil Koudelka
 * Grygoriy Tsenov
 
-For animal version please swith to **"master"** branch.
+This is for human, for animal version please swith to **"master"** branch.
 
 ##Experimental code for Event Realated Oscilation detection.
 
