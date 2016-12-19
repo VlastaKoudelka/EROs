@@ -5,7 +5,7 @@
 
 This is for human, for animal version please swith to **"master"** branch.
 
-##Experimental code for Event Realated Oscilation detection.
+##Experimental code for Event Related Oscillation detection.
 
 Developed software calculates advanced time-frequency quantities addressing evoked and induced EEG events. The software is designed to analyze both animal and human EEG data in order to provide translation between the observed phenomena. The analyzer is based on MATLAB platform and accepts LabChart and EDF data formats. More specifically, Event Related Oscillations are calculated to address induced oscillations. Phase Locking Index evaluates evoked oscillations over the trials and Phase Difference Locking Index measures functional connections between selected electrodes. The main outputs of the analyzer are the time-frequency characteristics of the quantities mentioned above.
 
@@ -16,11 +16,11 @@ There are one executable scripts (in MATLAB) in repository:
 EROS_HUMAN.m
 ```
 
-The script accepts EDF+ data format and reads EDF+ files with triggers (anotation).
+The script accepts EDF+ data format and reads EDF+ files with triggers (annotation).
 
 ####EROS_HUMAN.m
 
-Calculates, visualizes, and stores Event Related Ocilations (ERO), Phase Locking Index (PLI), and Event Related Potencial (ERP). Additional output is Averaged Event Related Ocilations (AVG_ERO), which is the ERO obtained from ERP.
+Calculates, visualizes, and stores Event Related Oscillations (ERO), Phase Locking Index (PLI), and Event Related Potential (ERP). Additional output is Averaged Event Related Oscillations (AVG_ERO), which is the ERO obtained from ERP.
 
 ###Workflow
 
@@ -33,17 +33,14 @@ For older MATLAB versions execute "matlabpool open" before calculation.
 
 ![Open](https://github.com/VlastaKoudelka/EROs/blob/human/Doc/Open.png)
 
-####Select multiple electrodes (use control+click or multiple selectin) for calculation:
+####Select multiple electrodes, triggers, reference for calculation, and subjects for visualization (use control+click or multiple selections):
 
 ![sel_el](https://github.com/VlastaKoudelka/EROs/blob/human/Doc/sel_el.png)
-
-####Select triggers (target/non-target):
-
 ![sel_trg](https://github.com/VlastaKoudelka/EROs/blob/human/Doc/sel_trig.png)
-
-####Select files to visualize, MEAN SUBJECT structure contains averages values of ERP, PLI, ERP over all files - the script gives names to figures and subplots automatically:
-
+![sel_ref](https://github.com/VlastaKoudelka/EROs/blob/human/Doc/sel_ref.png)
 ![sel_file](https://github.com/VlastaKoudelka/EROs/blob/human/Doc/sel_file.png)
+
+MEAN SUBJECT structure contains averages values of ERP, PLI, ERP over all files - the script gives names to figures and subplots automatically:
 
 ####Vizualize:
 
@@ -70,11 +67,3 @@ ans =
            PLI: {2x1 cell}
              f: [1x69 double]
 ```
-
-
-
-
-
-
-
-
