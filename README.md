@@ -48,7 +48,7 @@ MEAN SUBJECT structure contains averages values of ERP, PLI, ERP over all files 
 
 ####Store your results:
 
-Output date are stored into an array of structures:
+Output data are stored into an array of structures:
 
 ```MATLAB
 subject(1)
