@@ -3,9 +3,9 @@
 * Vlastimil Koudelka
 * Grygoriy Tsenov
 
-This is for rodents, for human version swith to **"human"** branch, please. 
+This is for rodents, for human version switch to **"human"** branch, please. 
 
-##Experimental code for Event Realated Oscilation detection.
+##Experimental code for Event Related Oscillation detection.
 Developed software calculates advanced time-frequency quantities addressing evoked and induced EEG events. The software is designed to analyze both animal and human EEG data in order to provide translation between the observed phenomena. The analyzer is based on MATLAB platform and accepts LabChart and EDF data formats. More specifically, Event Related Oscillations are calculated to address induced oscillations. Phase Locking Index evaluates evoked oscillations over the trials and Phase Difference Locking Index measures functional connections between selected electrodes. The main outputs of the analyzer are the time-frequency characteristics of the quantities mentioned above.
 
 ##How to use EROS RODENTS
@@ -23,11 +23,11 @@ Both scripts accept .mat files structure exported by LabCart software. For EDF s
 
 ####EROS_RODENTS.m
 
-Calculates, visualizes, and stores Event Related Ocilations (ERO), Phase Locking Index (PLI), and Event Related Potencial (ERP). Additional output is Averaged Event Related Ocilations (AVG_ERO), which is the ERO obtained from ERP.
+Calculates, visualizes, and stores Event Related Oscillations (ERO), Phase Locking Index (PLI), and Event Related Potential (ERP). Additional output is Averaged Event Related Oscillations (AVG_ERO), which is the ERO obtained from ERP.
 
 ####PDLI_RODENTS.m
 
-Calculates, visualizes, and stores Phase Locking Index as a functional conectivity measure between electrodes. All combinations of electrodes are provided.
+Calculates, visualizes, and stores Phase Locking Index as a functional connectivity measure between electrodes. All combinations of electrodes are provided.
 
 ###Workflow
 
