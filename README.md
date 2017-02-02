@@ -5,6 +5,8 @@
 
 This is for human, for animal version please swith to **"master"** branch.
 
+This software is a result of the research funded by the project Nr. LO1611 with a financial support from the MEYS under the NPU I program.  
+
 ##Experimental code for Event Related Oscillation detection.
 
 Developed software calculates advanced time-frequency quantities addressing evoked and induced EEG events. The software is designed to analyze both animal and human EEG data in order to provide translation between the observed phenomena. The analyzer is based on MATLAB platform and accepts LabChart and EDF data formats. More specifically, Event Related Oscillations are calculated to address induced oscillations. Phase Locking Index evaluates evoked oscillations over the trials and Phase Difference Locking Index measures functional connections between selected electrodes. The main outputs of the analyzer are the time-frequency characteristics of the quantities mentioned above.
